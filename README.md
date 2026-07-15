@@ -1,3 +1,5 @@
+[日本語](README_JA.md) | [English](README.md)
+
 ![Pub Version](https://img.shields.io/pub/v/flutter_reorderable_grid_view_desktop?color=%23397ab6&style=flat-square)
 ![GitHub branch checks state](https://img.shields.io/github/checks-status/rmagiga/flutter-reorderable-grid-view/master?style=flat-square)
 
