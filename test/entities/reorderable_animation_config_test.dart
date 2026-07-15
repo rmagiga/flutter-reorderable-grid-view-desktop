@@ -1,5 +1,5 @@
 import 'package:flutter/animation.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_animation_config.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_animation_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

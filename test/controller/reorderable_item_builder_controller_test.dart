@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_reorderable_grid_view/controller/reorderable_item_builder_controller.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_item_builder_controller.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../reorderable_builder.dart';

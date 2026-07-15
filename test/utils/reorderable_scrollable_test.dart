@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_reorderable_grid_view/utils/reorderable_scrollable.dart';
+import 'package:flutter_reorderable_grid_view_desktop/utils/reorderable_scrollable.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helper/fakes/fake_build_context.dart';

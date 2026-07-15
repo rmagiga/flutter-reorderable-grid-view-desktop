@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_reorderable_grid_view/widgets/widgets.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/widgets.dart';
 
 /// In this example [ReorderableBuilder.builder] is used.
 ///

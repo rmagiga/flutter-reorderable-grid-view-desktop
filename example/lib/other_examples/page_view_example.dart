@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_animation_config.dart';
-import 'package:flutter_reorderable_grid_view/widgets/widgets.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_animation_config.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/widgets.dart';
 
 void main() {
   runApp(const MaterialApp(home: MyApp()));

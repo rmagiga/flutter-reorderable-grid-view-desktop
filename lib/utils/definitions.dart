@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_reorderable_grid_view/entities/released_reorderable_entity.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/released_reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
 
 /// Void callback which contains ReorderableEntity as parameter.
 typedef ReorderableEntityCallback = void Function(

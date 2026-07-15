@@ -1,15 +1,15 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter_reorderable_grid_view/controller/reorderable_builder_controller.dart';
-import 'package:flutter_reorderable_grid_view/controller/reorderable_drag_and_drop_controller.dart';
-import 'package:flutter_reorderable_grid_view/controller/reorderable_item_builder_controller.dart';
-import 'package:flutter_reorderable_grid_view/entities/released_reorderable_entity.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorder_update_entity.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_animation_config.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_entity.dart';
-import 'package:flutter_reorderable_grid_view/utils/reorderable_scrollable.dart';
-import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder_item.dart';
-import 'package:flutter_reorderable_grid_view/widgets/reorderable_scrolling_listener.dart';
+import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_builder_controller.dart';
+import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_drag_and_drop_controller.dart';
+import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_item_builder_controller.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/released_reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorder_update_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_animation_config.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/utils/reorderable_scrollable.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_builder_item.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_scrolling_listener.dart';
 
 typedef DraggableBuilder = Widget Function(
   List<Widget> children,

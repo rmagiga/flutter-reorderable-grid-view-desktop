@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_animation_config.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_entity.dart';
-import 'package:flutter_reorderable_grid_view/utils/definitions.dart';
-import 'package:flutter_reorderable_grid_view/widgets/reorderable_animated_opcacity.dart';
-import 'package:flutter_reorderable_grid_view/widgets/reorderable_animated_positioned.dart';
-import 'package:flutter_reorderable_grid_view/widgets/reorderable_animated_released_container.dart';
-import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder_item.dart';
-import 'package:flutter_reorderable_grid_view/widgets/reorderable_draggable.dart';
-import 'package:flutter_reorderable_grid_view/widgets/reorderable_init_child.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_animation_config.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/utils/definitions.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_animated_opcacity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_animated_positioned.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_animated_released_container.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_builder_item.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_draggable.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_init_child.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helper/widget_test_helper.dart';

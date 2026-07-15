@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
 
 class ReleasedReorderableEntity {
   final ReorderableEntity reorderableEntity;

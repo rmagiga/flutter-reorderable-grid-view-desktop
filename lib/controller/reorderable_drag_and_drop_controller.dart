@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_reorderable_grid_view/controller/reorderable_controller.dart';
-import 'package:flutter_reorderable_grid_view/entities/released_reorderable_entity.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorder_update_entity.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_entity.dart';
-import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
+import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_controller.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/released_reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorder_update_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_builder.dart';
 
 // TODO(karvulf): add comment
 class ReorderableDragAndDropController extends ReorderableController {

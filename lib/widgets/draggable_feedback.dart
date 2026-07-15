@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_animation_config.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_animation_config.dart';
 
 class DraggableFeedback extends StatefulWidget {
   final Widget child;

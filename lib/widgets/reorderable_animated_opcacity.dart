@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_animation_config.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_entity.dart';
-import 'package:flutter_reorderable_grid_view/widgets/reorderable_init_child.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_animation_config.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_init_child.dart';
 
 /// Responsible for the fade in animation when [child] is created.
 class ReorderableAnimatedOpacity extends StatefulWidget {

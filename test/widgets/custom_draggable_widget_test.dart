@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_reorderable_grid_view/widgets/custom_draggable.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/custom_draggable.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

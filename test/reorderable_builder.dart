@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_reorderable_grid_view/entities/released_reorderable_entity.dart';
-import 'package:flutter_reorderable_grid_view/entities/reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/released_reorderable_entity.dart';
+import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
 
 class ReorderableBuilder {
   List<ReorderableEntity> getUniqueEntities({int count = 0}) {
