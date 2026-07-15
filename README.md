@@ -1,10 +1,10 @@
-![Pub Version](https://img.shields.io/pub/v/flutter_reorderable_grid_view?color=%23397ab6&style=flat-square)
-![GitHub branch checks state](https://img.shields.io/github/checks-status/karvulf/flutter-reorderable-grid-view/master?style=flat-square)
+![Pub Version](https://img.shields.io/pub/v/flutter_reorderable_grid_view_desktop?color=%23397ab6&style=flat-square)
+![GitHub branch checks state](https://img.shields.io/github/checks-status/rmagiga/flutter-reorderable-grid-view/master?style=flat-square)
 
 <p>
-  <img src="https://github.com/karvulf/flutter-reorderable-grid-view/blob/master/doc/animated_drag_and_drop.gif?raw=true"
+  <img src="https://github.com/rmagiga/flutter-reorderable-grid-view/blob/master/doc/animated_drag_and_drop.gif?raw=true"
     alt="An animated image of the iOS ReordableGridView UI" height="400"/>
-<img src="https://github.com/karvulf/flutter-reorderable-grid-view/blob/master/doc/animated_items.gif?raw=true"
+<img src="https://github.com/rmagiga/flutter-reorderable-grid-view/blob/master/doc/animated_items.gif?raw=true"
     alt="An animated image of the iOS ReordableGridView UI" height="400"/>
 </p>
 
@@ -37,7 +37,7 @@ Enhance your Flutter app with this package to:
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:flutter_reorderable_grid_view/widgets/widgets.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/widgets.dart';
 
 void main() {
   runApp(const MaterialApp(home: MyApp()));
