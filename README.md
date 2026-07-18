@@ -1,12 +1,12 @@
 [日本語](README_JA.md) | [English](README.md)
 
 ![Pub Version](https://img.shields.io/pub/v/flutter_reorderable_grid_view_desktop?color=%23397ab6&style=flat-square)
-![GitHub branch checks state](https://img.shields.io/github/checks-status/rmagiga/flutter-reorderable-grid-view/master?style=flat-square)
+![GitHub branch checks state](https://img.shields.io/github/checks-status/rmagiga/flutter-reorderable-grid-view-desktop/master?style=flat-square)
 
 <p>
-  <img src="https://github.com/rmagiga/flutter-reorderable-grid-view/blob/master/doc/animated_drag_and_drop.gif?raw=true"
+  <img src="https://github.com/rmagiga/flutter-reorderable-grid-view-desktop/blob/master/doc/animated_drag_and_drop.gif?raw=true"
     alt="An animated image of the iOS ReordableGridView UI" height="400"/>
-<img src="https://github.com/rmagiga/flutter-reorderable-grid-view/blob/master/doc/animated_items.gif?raw=true"
+<img src="https://github.com/rmagiga/flutter-reorderable-grid-view-desktop/blob/master/doc/animated_items.gif?raw=true"
     alt="An animated image of the iOS ReordableGridView UI" height="400"/>
 </p>
 
@@ -360,7 +360,7 @@ ReorderableGridDragStartListener(
 * Support for `Wrap` 
   * with animation when adding or removing items
   * drag and drop
-  * Github Issue [#28](https://github.com/karvulf/flutter-reorderable-grid-view/issues/28)
+  * Github Issue [#28](https://github.com/karvulf/flutter-reorderable-grid-view-desktop/issues/28)
 
 ## Future Plans
 

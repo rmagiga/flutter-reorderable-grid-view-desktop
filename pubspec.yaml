@@ -1,7 +1,7 @@
 name: flutter_reorderable_grid_view_desktop
 description: Enables animated GridViews when updating children or when trying to reorder them by using drag and drop. Forked to support Desktop enhancements including multi-selection.
 version: 5.7.0
-repository: https://github.com/rmagiga/flutter-reorderable-grid-view
+repository: https://github.com/rmagiga/flutter-reorderable-grid-view-desktop
 
 environment:
   sdk: '>=3.3.1 <4.0.0'
