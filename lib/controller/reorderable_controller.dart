@@ -152,6 +152,20 @@ abstract class ReorderableController {
     var updatedChildrenKeyMap = <dynamic, ReorderableEntity>{};
     var updatedChildrenOrderMap = <int, ReorderableEntity>{};
 
+    // === 調査ログ: updateToActualPositions 前の状態 ===
+    final sortedBefore = childrenKeyMap.entries.toList()
+      ..sort((a, b) => (childrenOrderMap.entries
+          .firstWhere((e) => e.value.key == a.value.key,
+              orElse: () => MapEntry(0, a.value))
+          .key)
+          .compareTo(childrenOrderMap.entries
+          .firstWhere((e) => e.value.key == b.value.key,
+              orElse: () => MapEntry(0, b.value))
+          .key));
+    final orderedBefore = childrenOrderMap.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    debugPrint('[updateToActualPositions] Before: ${orderedBefore.map((e) => "${e.key}:${e.value.key}(orig=${e.value.originalOrderId},upd=${e.value.updatedOrderId})").toList()}');
+
     for (final entry in childrenKeyMap.entries) {
       final updatedReorderableEntity = entry.value.positionUpdated();
       final originalOrderId = updatedReorderableEntity.originalOrderId;
@@ -163,6 +177,11 @@ abstract class ReorderableController {
       updatedChildrenKeyMap: updatedChildrenKeyMap,
       updatedChildrenOrderMap: updatedChildrenOrderMap,
     );
+
+    // === 調査ログ: updateToActualPositions 後の状態 ===
+    final orderedAfter = updatedChildrenOrderMap.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    debugPrint('[updateToActualPositions] After: ${orderedAfter.map((e) => "${e.key}:${e.value.key}(orig=${e.value.originalOrderId},upd=${e.value.updatedOrderId})").toList()}');
   }
 
   void replaceMaps({

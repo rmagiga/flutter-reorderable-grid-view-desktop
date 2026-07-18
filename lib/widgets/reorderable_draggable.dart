@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_animation_config.dart';
 import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
 import 'package:flutter_reorderable_grid_view_desktop/widgets/custom_draggable.dart';
@@ -30,6 +31,7 @@ class ReorderableDraggable extends StatefulWidget {
   final ReorderableEntity? currentDraggedEntity;
   final bool isGhost;
   final int draggedSelectedCount;
+  final bool buildDefaultDragHandles;
 
   const ReorderableDraggable({
     required this.child,
@@ -46,20 +48,22 @@ class ReorderableDraggable extends StatefulWidget {
     this.dragChildBoxDecoration,
     this.isGhost = false,
     this.draggedSelectedCount = 0,
+    this.buildDefaultDragHandles = true,
     Key? key,
   }) : super(key: key);
 
   @override
-  State<ReorderableDraggable> createState() => _ReorderableDraggableState();
+  State<ReorderableDraggable> createState() => ReorderableDraggableState();
 }
 
-class _ReorderableDraggableState extends State<ReorderableDraggable>
+class ReorderableDraggableState extends State<ReorderableDraggable>
     with TickerProviderStateMixin {
   late final AnimationController _decoratedBoxAnimationController;
   late final DecorationTween _decorationTween;
 
   bool isDragging = false;
   final _draggableFeedbackGlobalKey = GlobalKey();
+  RenderBox? _dragHandleRenderBox;
 
   /// Default [BoxDecoration] for dragged child.
   final _defaultBoxDecoration = BoxDecoration(
@@ -91,6 +95,39 @@ class _ReorderableDraggableState extends State<ReorderableDraggable>
       begin: beginDragBoxDecoration ?? const BoxDecoration(),
       end: widget.dragChildBoxDecoration ?? _defaultBoxDecoration,
     );
+  }
+
+  void registerDragHandle(RenderBox? renderBox) {
+    _dragHandleRenderBox = renderBox;
+  }
+
+  bool _shouldStartDrag(Offset globalPosition) {
+    if (widget.buildDefaultDragHandles) {
+      debugPrint('[ReorderableDraggable] _shouldStartDrag: buildDefaultDragHandles is true -> allow drag');
+      return true;
+    }
+    if (_dragHandleRenderBox == null) {
+      debugPrint('[ReorderableDraggable] _shouldStartDrag: _dragHandleRenderBox is null -> deny drag');
+      return false;
+    }
+    if (!_dragHandleRenderBox!.attached) {
+      debugPrint('[ReorderableDraggable] _shouldStartDrag: _dragHandleRenderBox is not attached -> deny drag');
+      return false;
+    }
+
+    try {
+      final localPosition = _dragHandleRenderBox!.globalToLocal(globalPosition);
+      final size = _dragHandleRenderBox!.size;
+      final allowed = localPosition.dx >= 0 &&
+          localPosition.dy >= 0 &&
+          localPosition.dx <= size.width &&
+          localPosition.dy <= size.height;
+      debugPrint('[ReorderableDraggable] _shouldStartDrag: localPosition=$localPosition, size=$size -> allowed=$allowed');
+      return allowed;
+    } catch (e) {
+      debugPrint('[ReorderableDraggable] _shouldStartDrag: error checking bounds: $e -> deny drag');
+      return false;
+    }
   }
 
   @override
@@ -161,21 +198,36 @@ class _ReorderableDraggableState extends State<ReorderableDraggable>
 
     late final Widget draggable;
 
-    // if delay is Duration.zero, LongPressDraggable breaks onTap for [child]
-    if (!widget.enableLongPress || widget.longPressDelay == Duration.zero) {
-      draggable = Draggable(
-        onDragStarted: _handleDragStarted,
-        onDraggableCanceled: (Velocity velocity, Offset offset) {
-          _handleDragEnd(offset);
-        },
-        onDragCompleted: _handleDragCompleted,
-        feedback: feedback,
-        data: data,
-        child: child,
-      );
+    if (widget.buildDefaultDragHandles) {
+      // if delay is Duration.zero, LongPressDraggable breaks onTap for [child]
+      if (!widget.enableLongPress || widget.longPressDelay == Duration.zero) {
+        draggable = Draggable(
+          onDragStarted: _handleDragStarted,
+          onDraggableCanceled: (Velocity velocity, Offset offset) {
+            _handleDragEnd(offset);
+          },
+          onDragCompleted: _handleDragCompleted,
+          feedback: feedback,
+          data: data,
+          child: child,
+        );
+      } else {
+        draggable = LongPressDraggable(
+          delay: widget.longPressDelay,
+          onDragStarted: _handleDragStarted,
+          onDraggableCanceled: (Velocity velocity, Offset offset) {
+            _handleDragEnd(offset);
+          },
+          onDragCompleted: _handleDragCompleted,
+          feedback: feedback,
+          data: data,
+          child: child,
+        );
+      }
     } else {
-      draggable = LongPressDraggable(
-        delay: widget.longPressDelay,
+      // ドラッグハンドル使用時は、親が長押し設定であってもハンドルを掴んだ瞬間に即時ドラッグを開始させる
+      draggable = _CustomDraggable(
+        shouldStartDrag: _shouldStartDrag,
         onDragStarted: _handleDragStarted,
         onDraggableCanceled: (Velocity velocity, Offset offset) {
           _handleDragEnd(offset);
@@ -187,17 +239,21 @@ class _ReorderableDraggableState extends State<ReorderableDraggable>
       );
     }
 
-    return Visibility(
-      visible: visible,
-      maintainAnimation: true,
-      maintainSize: true,
-      maintainState: true,
-      child: widget.currentDraggedEntity != null ? child : draggable,
+    return ReorderableDraggableProvider(
+      state: this,
+      child: Visibility(
+        visible: visible,
+        maintainAnimation: true,
+        maintainSize: true,
+        maintainState: true,
+        child: widget.currentDraggedEntity != null ? child : draggable,
+      ),
     );
   }
 
   /// Called after dragging started.
   void _handleDragStarted() {
+    debugPrint('[ReorderableDraggable] _handleDragStarted called!');
     isDragging = true;
     widget.onDragStarted();
     _decoratedBoxAnimationController.forward();
@@ -239,6 +295,67 @@ class _ReorderableDraggableState extends State<ReorderableDraggable>
       return child.data;
     } else {
       return null;
+    }
+  }
+}
+
+class ReorderableDraggableProvider extends InheritedWidget {
+  final ReorderableDraggableState state;
+
+  const ReorderableDraggableProvider({
+    required this.state,
+    required super.child,
+    super.key,
+  });
+
+  static ReorderableDraggableState? of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<ReorderableDraggableProvider>()?.state;
+  }
+
+  @override
+  bool updateShouldNotify(ReorderableDraggableProvider oldWidget) => true;
+}
+
+class _CustomDraggable extends Draggable {
+  final bool Function(Offset position) shouldStartDrag;
+
+  const _CustomDraggable({
+    required this.shouldStartDrag,
+    required super.child,
+    required super.feedback,
+    super.data,
+    super.onDragStarted,
+    super.onDraggableCanceled,
+    super.onDragCompleted,
+  });
+
+  @override
+  ImmediateMultiDragGestureRecognizer createRecognizer(
+    GestureMultiDragStartCallback onStart,
+  ) {
+    final recognizer = _CustomImmediateMultiDragGestureRecognizer(
+      shouldStartDrag: shouldStartDrag,
+      debugOwner: this,
+    );
+    recognizer.onStart = onStart;
+    return recognizer;
+  }
+}
+
+class _CustomImmediateMultiDragGestureRecognizer extends ImmediateMultiDragGestureRecognizer {
+  final bool Function(Offset position) shouldStartDrag;
+
+  _CustomImmediateMultiDragGestureRecognizer({
+    required this.shouldStartDrag,
+    super.debugOwner,
+  });
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    final allowed = shouldStartDrag(event.position);
+    debugPrint('[CustomRecognizer] Immediate: addAllowedPointer allowed=$allowed');
+    if (allowed) {
+      super.addAllowedPointer(event);
     }
   }
 }

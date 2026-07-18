@@ -92,6 +92,7 @@ class _MultiSelectionExampleState extends State<MultiSelectionExample> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: ReorderableBuilder<int>(
+                buildDefaultDragHandles: false,
                 // Controlled モード: 外部Controllerを渡す
                 selectionController: _selectionController,
                 // 選択デコレーション
@@ -114,6 +115,7 @@ class _MultiSelectionExampleState extends State<MultiSelectionExample> {
                   // ドロップ後も選択維持（デフォルト動作）
                 },
                 onSelectionChanged: (selectedKeys) {
+                  setState(() {});
                   // 選択変更のログ（任意）
                   debugPrint('選択中: ${selectedKeys.length}件');
                 },
@@ -178,6 +180,8 @@ class _MultiSelectionExampleState extends State<MultiSelectionExample> {
   }
 
   List<Widget> _buildChildren() {
+    final showDragHandles = _selectionController.selected.isNotEmpty;
+
     return List<Widget>.generate(_items.length, (index) {
       final value = _items[index];
       final isLocked = index == 0;
@@ -209,6 +213,14 @@ class _MultiSelectionExampleState extends State<MultiSelectionExample> {
                     Icons.lock,
                     size: 12,
                     color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                if (!isLocked && showDragHandles)
+                  ReorderableGridDragStartListener(
+                    index: index,
+                    child: Icon(
+                      Icons.reorder,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
                   ),
               ],
             ),

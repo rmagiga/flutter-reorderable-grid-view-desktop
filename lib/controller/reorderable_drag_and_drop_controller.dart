@@ -14,6 +14,13 @@ class ReorderableDragAndDropController extends ReorderableController {
   /// Currently selected keys.
   var selectedKeys = <Key>{};
 
+  /// ドラッグ開始時の並び替え前キーリストを保持する変数。
+  List<Key> _keysAtDragStart = [];
+
+  /// 複数選択ドラッグ終了時に計算した目標キー順序。
+  /// reorderListMulti で items を同じ順序に並び替えるために使用する。
+  List<Key>? _multiSelectionNewKeys;
+
   /// Entity that is released after drag and drop.
   ///
   /// [ReleasedReorderableEntity] contains the offset where it was released.
@@ -58,6 +65,15 @@ class ReorderableDragAndDropController extends ReorderableController {
     scrollOffset = currentScrollOffset;
     this.isScrollableOutside = isScrollableOutside;
     startDraggingScrollOffset = currentScrollOffset;
+
+    // childrenKeyMap から updatedOrderId でソートして UI の表示順キーリストを構築する。
+    // childrenOrderMap のキーは originalOrderId なので、orderId=-1 のエンティティが
+    // ソート時に先頭に来てしまう問題を回避するため childrenKeyMap を使用する。
+    final sortedByUpdated = childrenKeyMap.values.toList()
+      ..sort((a, b) => a.updatedOrderId.compareTo(b.updatedOrderId));
+    _keysAtDragStart = sortedByUpdated.map((e) => e.key).toList();
+    debugPrint('[Controller] handleDragStarted: saved _keysAtDragStart=$_keysAtDragStart');
+
     if (itemCount != null) super.shortenMapsToItemCount(itemCount: itemCount);
   }
 
@@ -148,39 +164,76 @@ class ReorderableDragAndDropController extends ReorderableController {
     int oldIndex,
     int newIndex,
   ) {
-    if (oldIndex == newIndex) return null;
+    debugPrint('[Controller] _handleMultiSelectionDragEnd: draggedKey=$draggedKey, oldIndex=$oldIndex, newIndex=$newIndex');
+    if (oldIndex == newIndex) {
+      debugPrint('[Controller] _handleMultiSelectionDragEnd: oldIndex == newIndex -> null');
+      return null;
+    }
 
-    final sortedEntityEntries = childrenOrderMap.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    final currentKeys = sortedEntityEntries.map((e) => e.value.key).toList();
+    // childrenKeyMap から updatedOrderId でソートしてドラッグ後の実際の表示順を取得する。
+    // childrenOrderMap のキーは originalOrderId なので、orderId=-1 が先頭に来る問題を回避。
+    final sortedByUpdated = childrenKeyMap.values.toList()
+      ..sort((a, b) => a.updatedOrderId.compareTo(b.updatedOrderId));
+    final currentKeys = sortedByUpdated.map((e) => e.key).toList();
+    debugPrint('[Controller] _handleMultiSelectionDragEnd: currentKeys=$currentKeys');
 
-    final sortedSelectedKeys = currentKeys.where((key) => selectedKeys.contains(key)).toList();
-    if (sortedSelectedKeys.isEmpty) return null;
+    // 選択アイテムはドラッグ開始前の順序（_keysAtDragStart）で並べる
+    // currentKeys はドラッグ中のスワップで順序が変わっているため使用しない
+    final sortedSelectedKeys = _keysAtDragStart
+        .where((key) => selectedKeys.contains(key))
+        .toList();
+    debugPrint('[Controller] _handleMultiSelectionDragEnd: sortedSelectedKeys=$sortedSelectedKeys');
+    if (sortedSelectedKeys.isEmpty) {
+      debugPrint('[Controller] _handleMultiSelectionDragEnd: sortedSelectedKeys is empty -> null');
+      return null;
+    }
 
+    // remainingKeys は currentKeys から選択済みを除いた非選択キーの現在順序
     final remainingKeys = List<Key>.from(currentKeys);
     for (final key in sortedSelectedKeys) {
       remainingKeys.remove(key);
     }
+    debugPrint('[Controller] _handleMultiSelectionDragEnd: remainingKeys=$remainingKeys');
 
-    final targetEntity = childrenOrderMap[newIndex];
-    if (targetEntity == null) return null;
-    final targetKey = targetEntity.key;
-
-    final targetIndexInRemaining = remainingKeys.indexOf(targetKey);
-    if (targetIndexInRemaining == -1) return null;
-
+    // insertIndex を _keysAtDragStart 基準の非選択数で算出する
+    // （reorderListMulti と同じロジック）
     final isRightToLeft = newIndex < oldIndex;
-    final insertIndex = isRightToLeft ? targetIndexInRemaining : targetIndexInRemaining + 1;
+    int nonSelectedCount = 0;
+    for (int i = 0; i < _keysAtDragStart.length; i++) {
+      final key = _keysAtDragStart[i];
+      final isSelected = selectedKeys.contains(key);
+
+      if (!isSelected) {
+        if (i < newIndex) {
+          nonSelectedCount++;
+        } else if (i == newIndex) {
+          if (!isRightToLeft) {
+            nonSelectedCount++;
+          }
+        }
+      }
+    }
+    final insertIndex = nonSelectedCount;
+    debugPrint('[Controller] _handleMultiSelectionDragEnd: calculated insertIndex=$insertIndex');
 
     final newKeys = List<Key>.from(remainingKeys);
     newKeys.insertAll(insertIndex, sortedSelectedKeys);
+    debugPrint('[Controller] _handleMultiSelectionDragEnd: newKeys=$newKeys');
+
+    // reorderListMulti で items を同順に並び替えられるよう保存する
+    _multiSelectionNewKeys = newKeys;
 
     final orderUpdateEntities = <ReorderUpdateEntity>[];
 
     for (int i = 0; i < newKeys.length; i++) {
       final key = newKeys[i];
-      final entity = childrenKeyMap[(key as ValueKey).value]!;
-      final originalOffset = offsetMap[i]!;
+      final value = (key as ValueKey).value;
+      final entity = childrenKeyMap[value];
+      if (entity == null) {
+        debugPrint('[Controller] Warning: key=$key (value=$value) not found in childrenKeyMap!');
+        continue;
+      }
+      final originalOffset = offsetMap[i] ?? Offset.zero;
 
       final updatedEntity = entity.dragUpdated(
         updatedOffset: originalOffset,
@@ -199,6 +252,7 @@ class ReorderableDragAndDropController extends ReorderableController {
       }
     }
 
+    debugPrint('[Controller] _handleMultiSelectionDragEnd: orderUpdateEntities=$orderUpdateEntities');
     return orderUpdateEntities;
   }
 
@@ -208,34 +262,68 @@ class ReorderableDragAndDropController extends ReorderableController {
     required int oldIndex,
     required int newIndex,
   }) {
-    if (oldIndex == newIndex) return items;
+    debugPrint('[Controller] reorderListMulti: oldIndex=$oldIndex, newIndex=$newIndex, selectedKeys=$selectedKeys');
+    debugPrint('[Controller] reorderListMulti: items(${items.length})=$items');
 
-    final selectedIndices = selectedKeys.map((key) {
-      return childrenKeyMap[(key as ValueKey).value]?.originalOrderId;
-    }).whereType<int>().toSet();
+    // _handleMultiSelectionDragEnd で計算した newKeys（UIの目標順序）を使って items を並び替える。
+    // _keysAtDragStart[i] が items[i] に対応するという前提で、
+    // newKeys[i] に対応する items のアイテムを特定する。
+    final newKeys = _multiSelectionNewKeys;
+    if (newKeys == null || newKeys.isEmpty) {
+      debugPrint('[Controller] reorderListMulti: newKeys is null -> return original items');
+      return items;
+    }
 
-    if (selectedIndices.isEmpty) return items;
+    // === 調査ログ: _keysAtDragStart と items の対応チェック ===
+    debugPrint('[Controller] reorderListMulti: === _keysAtDragStart(${_keysAtDragStart.length}) vs items(${items.length}) ===');
+    for (int i = 0; i < _keysAtDragStart.length && i < items.length; i++) {
+      debugPrint('[Controller] reorderListMulti:   [$i] key=${_keysAtDragStart[i]}, items[$i]=${items[i]}');
+    }
+    if (_keysAtDragStart.length != items.length) {
+      debugPrint('[Controller] reorderListMulti: ⚠️長さ不一致! _keysAtDragStart=${_keysAtDragStart.length}, items=${items.length}');
+    }
 
-    final selectedItems = <T>[];
-    final remainingItems = <T>[];
-    for (int i = 0; i < items.length; i++) {
-      if (selectedIndices.contains(i)) {
-        selectedItems.add(items[i]);
+    // _keysAtDragStart での各 Key のインデックス（= items での元インデックス）を引く
+    final keyToItemIndex = <Key, int>{};
+    for (int i = 0; i < _keysAtDragStart.length; i++) {
+      keyToItemIndex[_keysAtDragStart[i]] = i;
+    }
+
+    // === 調査ログ: newKeys マッピング詳細 ===
+    debugPrint('[Controller] reorderListMulti: === newKeys マッピング(${newKeys.length}件) ===');
+    for (int i = 0; i < newKeys.length; i++) {
+      final key = newKeys[i];
+      final itemIdx = keyToItemIndex[key];
+      final item = (itemIdx != null && itemIdx < items.length) ? items[itemIdx] : 'N/A(対応なし)';
+      debugPrint('[Controller] reorderListMulti:   newKeys[$i]=$key -> _keysAtDragStart index=$itemIdx -> items[$itemIdx]=$item');
+    }
+
+    // newKeys の順序に従って items を並び替える
+    final updatedItems = <T>[];
+    for (final key in newKeys) {
+      final itemIndex = keyToItemIndex[key];
+      if (itemIndex != null && itemIndex < items.length) {
+        updatedItems.add(items[itemIndex]);
       } else {
-        remainingItems.add(items[i]);
+        debugPrint('[Controller] reorderListMulti: ⚠️ key=$key は _keysAtDragStart に存在しないか範囲外');
       }
     }
 
-    final targetItem = items[newIndex];
-    final targetIndexInRemaining = remainingItems.indexOf(targetItem);
-    if (targetIndexInRemaining == -1) return items;
+    // newKeys に含まれなかったアイテムがあれば末尾に追加（安全策）
+    if (updatedItems.length < items.length) {
+      final usedIndices = newKeys
+          .map((k) => keyToItemIndex[k])
+          .whereType<int>()
+          .toSet();
+      for (int i = 0; i < items.length; i++) {
+        if (!usedIndices.contains(i)) {
+          updatedItems.add(items[i]);
+          debugPrint('[Controller] reorderListMulti: 末尾追加: items[$i]=${items[i]}');
+        }
+      }
+    }
 
-    final isRightToLeft = newIndex < oldIndex;
-    final insertIndex = isRightToLeft ? targetIndexInRemaining : targetIndexInRemaining + 1;
-
-    final updatedItems = List<T>.from(remainingItems);
-    updatedItems.insertAll(insertIndex, selectedItems);
-
+    debugPrint('[Controller] reorderListMulti: updatedItems=$updatedItems');
     return updatedItems;
   }
 

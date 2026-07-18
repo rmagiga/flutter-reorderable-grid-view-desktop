@@ -44,6 +44,7 @@ class ReorderableBuilder<T> extends StatefulWidget {
   static const _defaultAnimationConfig = ReorderableAnimationConfig();
   static const _defaultEnableMultiSelection = false;
   static const _defaultEnableSelectAll = true;
+  static const _defaultBuildDefaultDragHandles = true;
 
   /// Defines the children that will be displayed for drag and drop.
   final List<Widget>? children;
@@ -198,6 +199,12 @@ class ReorderableBuilder<T> extends StatefulWidget {
   /// [lockedIndices] のアイテムも自動的に選択不可になります。
   final bool Function(int index)? disabledSelectionPredicate;
 
+  /// ドラッグハンドル機能を使用するかどうか。
+  ///
+  /// false に設定した場合、[ReorderableDragStartListener] が配置された
+  /// ハンドル部分をドラッグしたときのみドラッグを開始できます。
+  final bool buildDefaultDragHandles;
+
   /// It's required to use [ReorderableBuilder] to obtain updated [children].
   ///
   /// This function returns the [children] containing all necessary widgets
@@ -285,6 +292,7 @@ class ReorderableBuilder<T> extends StatefulWidget {
     this.selectedBuilder,
     this.enableSelectAll = _defaultEnableSelectAll,
     this.disabledSelectionPredicate,
+    this.buildDefaultDragHandles = _defaultBuildDefaultDragHandles,
     Key? key,
   })  : assert((enableDraggable &&
                 (onReorder != null || onReorderPositions != null)) ||
@@ -324,6 +332,7 @@ class ReorderableBuilder<T> extends StatefulWidget {
     this.selectedBuilder,
     this.enableSelectAll = _defaultEnableSelectAll,
     this.disabledSelectionPredicate,
+    this.buildDefaultDragHandles = _defaultBuildDefaultDragHandles,
     Key? key,
   })  : assert((enableDraggable &&
                 (onReorder != null || onReorderPositions != null)) ||
@@ -351,6 +360,9 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   /// Uncontrolledモード時に内部で生成したかどうか。
   /// dispose時に内部生成のもののみ廃棄する。
   bool _isInternalSelectionController = false;
+
+  /// ドラッグ終了処理の多重割り込みを防ぐガードフラグ。
+  bool _isFinishingDragging = false;
 
   @override
   void initState() {
@@ -558,6 +570,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
       },
       selectedDecoration: widget.selectedDecoration,
       selectedBuilder: widget.selectedBuilder,
+      buildDefaultDragHandles: widget.buildDefaultDragHandles,
       child: child,
     );
   }
@@ -583,7 +596,14 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
 
   void _handleDragStarted(ReorderableEntity reorderableEntity) {
     final isMultiSelectionEnabled = widget.enableMultiSelection || widget.selectionController != null;
-    if (isMultiSelectionEnabled && !_selectionController.isSelected(reorderableEntity.key)) {
+    final key = reorderableEntity.key;
+    final isSelected = _selectionController.isSelected(key);
+    final selectedKeys = _selectionController.selected;
+    
+    debugPrint('[ReorderableBuilder] _handleDragStarted: key=$key, isSelected=$isSelected, selectedKeys=$selectedKeys');
+
+    if (isMultiSelectionEnabled && !isSelected) {
+      debugPrint('[ReorderableBuilder] _handleDragStarted: key is not selected -> clearing selection');
       _selectionController.clear();
     }
 
@@ -660,37 +680,57 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   }
 
   void _finishDragging() {
-    final draggedEntity = _reorderableController.draggedEntity;
-    if (draggedEntity == null) return;
+    if (_isFinishingDragging) {
+      debugPrint('[ReorderableBuilder] _finishDragging: blocked by reentrancy guard');
+      return;
+    }
+    _isFinishingDragging = true;
 
-    final draggedKey = draggedEntity.key;
-    final isMultiSelection = _reorderableController.selectedKeys.contains(draggedKey);
-    final oldIndex = draggedEntity.originalOrderId;
-    final newIndex = draggedEntity.updatedOrderId;
-
-    widget.onDragEnd?.call(newIndex);
-
-    final reorderUpdateEntities = _reorderableController.handleDragEnd();
-
-    if (reorderUpdateEntities != null) {
-      assert((widget.onReorder != null) ^ (widget.onReorderPositions != null),
-          'One of either onReorder or onReorderPositions must be provided');
-
-      widget.onReorderPositions?.call(reorderUpdateEntities);
-
-      if (isMultiSelection) {
-        widget.onReorder?.call((items) => _reorderableController.reorderListMulti(
-              items: items,
-              selectedKeys: _reorderableController.selectedKeys,
-              oldIndex: oldIndex,
-              newIndex: newIndex,
-            ));
-      } else {
-        widget.onReorder?.call((items) => _reorderableController.reorderList(
-              items: items,
-              reorderUpdateEntities: reorderUpdateEntities,
-            ));
+    try {
+      final draggedEntity = _reorderableController.draggedEntity;
+      if (draggedEntity == null) {
+        debugPrint('[ReorderableBuilder] _finishDragging: draggedEntity is null');
+        return;
       }
+
+      final draggedKey = draggedEntity.key;
+      final controllerSelectedKeys = _reorderableController.selectedKeys;
+      final isMultiSelection = controllerSelectedKeys.contains(draggedKey);
+      final oldIndex = draggedEntity.originalOrderId;
+      final newIndex = draggedEntity.updatedOrderId;
+
+      debugPrint('[ReorderableBuilder] _finishDragging: draggedKey=$draggedKey, controllerSelectedKeys=$controllerSelectedKeys, isMultiSelection=$isMultiSelection');
+
+      widget.onDragEnd?.call(newIndex);
+
+      final reorderUpdateEntities = _reorderableController.handleDragEnd();
+
+      if (reorderUpdateEntities != null) {
+        assert((widget.onReorder != null) ^ (widget.onReorderPositions != null),
+            'One of either onReorder or onReorderPositions must be provided');
+
+        widget.onReorderPositions?.call(reorderUpdateEntities);
+
+        if (isMultiSelection) {
+          debugPrint('[ReorderableBuilder] _finishDragging: executing reorderListMulti');
+          widget.onReorder?.call((items) => _reorderableController.reorderListMulti(
+                items: items,
+                selectedKeys: _reorderableController.selectedKeys,
+                oldIndex: oldIndex,
+                newIndex: newIndex,
+              ));
+        } else {
+          debugPrint('[ReorderableBuilder] _finishDragging: executing reorderList (single)');
+          widget.onReorder?.call((items) => _reorderableController.reorderList(
+                items: items,
+                reorderUpdateEntities: reorderUpdateEntities,
+              ));
+        }
+      }
+    } finally {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _isFinishingDragging = false;
+      });
     }
   }
 

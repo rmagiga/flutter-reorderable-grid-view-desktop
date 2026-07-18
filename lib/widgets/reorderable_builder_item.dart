@@ -116,6 +116,8 @@ class ReorderableBuilderItem extends StatefulWidget {
   /// 選択されたアイテムのカスタムビルダー（selectedDecoration より優先）
   final Widget Function(BuildContext context, Widget child, bool isSelected)? selectedBuilder;
 
+  final bool buildDefaultDragHandles;
+
   const ReorderableBuilderItem({
     required this.reorderableEntity,
     required this.animationConfig,
@@ -144,6 +146,7 @@ class ReorderableBuilderItem extends StatefulWidget {
     this.onSelectionChanged,
     this.selectedDecoration,
     this.selectedBuilder,
+    this.buildDefaultDragHandles = true,
     super.key,
   });
 
@@ -235,6 +238,7 @@ class _ReorderableBuilderItemState extends State<ReorderableBuilderItem> {
               animationConfig: animationConfig,
               isGhost: isGhost,
               draggedSelectedCount: draggedSelectedCount,
+              buildDefaultDragHandles: widget.buildDefaultDragHandles,
               // all three dragging functions will trigger a setState for all children
               // that's why the single entity won't be updated here because
               // the drag and drop effects much more children
