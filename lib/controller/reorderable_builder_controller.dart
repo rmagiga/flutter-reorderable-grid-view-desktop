@@ -36,7 +36,7 @@ class ReorderableBuilderController extends ReorderableDragAndDropController {
   /// With this update, it is possible to have correct animations later to move
   /// the [children] visually.
   void updateChildren({required List<Widget> children}) {
-    var updatedChildrenKeyMap = <String, ReorderableEntity>{};
+    var updatedChildrenKeyMap = <dynamic, ReorderableEntity>{};
     var updatedChildrenOrderMap = <int, ReorderableEntity>{};
 
     var index = 0;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_selection_controller.dart';
 import 'package:flutter_reorderable_grid_view_desktop/entities/released_reorderable_entity.dart';
 import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_animation_config.dart';
 import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_animat
 import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_animated_released_container.dart';
 import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_draggable.dart';
 import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_init_child.dart';
+import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_selectable.dart';
 
 class ReorderableBuilderItem extends StatefulWidget {
   ///
@@ -83,6 +85,37 @@ class ReorderableBuilderItem extends StatefulWidget {
   /// The item that will be displayed in the GridView.
   final Widget child;
 
+  ///
+  /// For [ReorderableSelectable]
+  ///
+
+  /// 選択状態を管理するController（null の場合は選択機能無効）
+  final ReorderableSelectionController? selectionController;
+
+  /// このアイテムが現在選択されているか
+  final bool isSelected;
+
+  /// このアイテムが選択不可か（lockedIndices や disabledSelectionPredicate による）
+  final bool isSelectionDisabled;
+
+  /// 複数選択機能が有効か
+  final bool enableMultiSelection;
+
+  /// Ctrl+A による全選択を有効にするか
+  final bool enableSelectAll;
+
+  /// Shift+クリックの範囲選択に使用する全Keyの順序付きリスト
+  final List<Key> allKeys;
+
+  /// 選択状態が変化した時のコールバック
+  final void Function(Set<Key> selectedKeys)? onSelectionChanged;
+
+  /// 選択されたアイテムに適用するデコレーション（selectedBuilder が null の場合に使用）
+  final BoxDecoration? selectedDecoration;
+
+  /// 選択されたアイテムのカスタムビルダー（selectedDecoration より優先）
+  final Widget Function(BuildContext context, Widget child, bool isSelected)? selectedBuilder;
+
   const ReorderableBuilderItem({
     required this.reorderableEntity,
     required this.animationConfig,
@@ -101,6 +134,16 @@ class ReorderableBuilderItem extends StatefulWidget {
     required this.onDragEnd,
     required this.onDragCanceled,
     required this.child,
+    // 選択機能パラメータ
+    this.selectionController,
+    this.isSelected = false,
+    this.isSelectionDisabled = false,
+    this.enableMultiSelection = false,
+    this.enableSelectAll = true,
+    this.allKeys = const [],
+    this.onSelectionChanged,
+    this.selectedDecoration,
+    this.selectedBuilder,
     super.key,
   });
 
@@ -142,8 +185,17 @@ class _ReorderableBuilderItemState extends State<ReorderableBuilderItem> {
   @override
   Widget build(BuildContext context) {
     final animationConfig = widget.animationConfig;
+    final selectionController = widget.selectionController;
 
-    return ReorderableAnimatedOpacity(
+    final isDraggedSelected = widget.currentDraggedEntity != null &&
+        selectionController != null &&
+        selectionController.isSelected(widget.currentDraggedEntity!.key);
+
+    final isGhost = isDraggedSelected && widget.isSelected;
+    final draggedSelectedCount = isDraggedSelected ? selectionController.selected.length : 0;
+
+    // ドラッグ＆ドロップのウィジェットツリー
+    final draggableTree = ReorderableAnimatedOpacity(
       reorderableEntity: widget.reorderableEntity,
       animationConfig: animationConfig,
       onAnimationStarted: () {
@@ -181,6 +233,8 @@ class _ReorderableBuilderItemState extends State<ReorderableBuilderItem> {
               dragChildBoxDecoration: widget.dragChildBoxDecoration,
               feedbackScaleFactor: widget.feedbackScaleFactor,
               animationConfig: animationConfig,
+              isGhost: isGhost,
+              draggedSelectedCount: draggedSelectedCount,
               // all three dragging functions will trigger a setState for all children
               // that's why the single entity won't be updated here because
               // the drag and drop effects much more children
@@ -195,6 +249,27 @@ class _ReorderableBuilderItemState extends State<ReorderableBuilderItem> {
           ),
         ),
       ),
+    );
+
+    // 選択機能が無効な場合はドラッグツリーをそのまま返す
+    if (!widget.enableMultiSelection || selectionController == null) {
+      return draggableTree;
+    }
+
+    // 選択機能が有効な場合は ReorderableSelectable でラップ
+    return ReorderableSelectable(
+      itemKey: _reorderableEntity.key,
+      index: _reorderableEntity.updatedOrderId,
+      selectionController: selectionController,
+      isSelected: widget.isSelected,
+      isSelectionDisabled: widget.isSelectionDisabled,
+      enableMultiSelection: widget.enableMultiSelection,
+      enableSelectAll: widget.enableSelectAll,
+      allKeys: widget.allKeys,
+      onSelectionChanged: widget.onSelectionChanged,
+      selectedDecoration: widget.selectedDecoration,
+      selectedBuilder: widget.selectedBuilder,
+      child: draggableTree,
     );
   }
 

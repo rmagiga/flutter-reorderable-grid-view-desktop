@@ -28,6 +28,8 @@ class ReorderableDraggable extends StatefulWidget {
   final VoidCallback onDragCanceled;
 
   final ReorderableEntity? currentDraggedEntity;
+  final bool isGhost;
+  final int draggedSelectedCount;
 
   const ReorderableDraggable({
     required this.child,
@@ -42,6 +44,8 @@ class ReorderableDraggable extends StatefulWidget {
     required this.currentDraggedEntity,
     required this.animationConfig,
     this.dragChildBoxDecoration,
+    this.isGhost = false,
+    this.draggedSelectedCount = 0,
     Key? key,
   }) : super(key: key);
 
@@ -100,6 +104,41 @@ class _ReorderableDraggableState extends State<ReorderableDraggable>
     final reorderableEntity = widget.reorderableEntity;
     var child = widget.child;
 
+    Widget feedbackChild = child;
+    if (widget.draggedSelectedCount > 1) {
+      feedbackChild = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          child,
+          Positioned(
+            top: -8,
+            right: -8,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 24,
+                minHeight: 24,
+              ),
+              child: Center(
+                child: Text(
+                  '+${widget.draggedSelectedCount - 1}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     final feedback = DraggableFeedback(
       key: _draggableFeedbackGlobalKey,
       size: reorderableEntity.size,
@@ -107,12 +146,12 @@ class _ReorderableDraggableState extends State<ReorderableDraggable>
       feedbackScaleFactor: widget.feedbackScaleFactor,
       animationConfig: widget.animationConfig,
       onDeactivate: widget.onDragCanceled,
-      child: child,
+      child: feedbackChild,
     );
 
     final currentDraggedEntity = widget.currentDraggedEntity;
     final updatedOrderId = reorderableEntity.updatedOrderId;
-    final visible = currentDraggedEntity?.updatedOrderId != updatedOrderId;
+    final visible = (currentDraggedEntity?.updatedOrderId != updatedOrderId) && !widget.isGhost;
 
     final data = _getData();
 

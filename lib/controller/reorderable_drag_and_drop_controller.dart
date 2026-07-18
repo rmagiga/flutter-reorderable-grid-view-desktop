@@ -11,6 +11,9 @@ class ReorderableDragAndDropController extends ReorderableController {
   @visibleForTesting
   var lockedIndices = <int>[];
 
+  /// Currently selected keys.
+  var selectedKeys = <Key>{};
+
   /// Entity that is released after drag and drop.
   ///
   /// [ReleasedReorderableEntity] contains the offset where it was released.
@@ -46,7 +49,9 @@ class ReorderableDragAndDropController extends ReorderableController {
     required List<int> lockedIndices,
     required bool isScrollableOutside,
     required int? itemCount,
+    Set<Key> selectedKeys = const {},
   }) {
+    this.selectedKeys = selectedKeys;
     _releasedReorderableEntity = null;
     this.lockedIndices = lockedIndices;
     super.draggedEntity = childrenKeyMap[reorderableEntity.key.value];
@@ -112,20 +117,126 @@ class ReorderableDragAndDropController extends ReorderableController {
   List<ReorderUpdateEntity>? handleDragEnd() {
     if (super.draggedEntity == null) return null;
 
+    final draggedKey = super.draggedEntity!.key;
     final oldIndex = super.draggedEntity!.originalOrderId;
     final newIndex = super.draggedEntity!.updatedOrderId;
 
-    super.draggedEntity = null;
+    final isMultiSelection = selectedKeys.contains(draggedKey);
 
+    if (isMultiSelection) {
+      final orderUpdateEntities = _handleMultiSelectionDragEnd(draggedKey, oldIndex, newIndex);
+      super.draggedEntity = null;
+      updateToActualPositions();
+      return orderUpdateEntities;
+    } else {
+      super.draggedEntity = null;
+
+      if (oldIndex == newIndex) return null;
+
+      final orderUpdateEntities = _getOrderUpdateEntities(
+        oldIndex: oldIndex,
+        newIndex: newIndex,
+      );
+
+      updateToActualPositions();
+      return orderUpdateEntities;
+    }
+  }
+
+  List<ReorderUpdateEntity>? _handleMultiSelectionDragEnd(
+    Key draggedKey,
+    int oldIndex,
+    int newIndex,
+  ) {
     if (oldIndex == newIndex) return null;
 
-    final orderUpdateEntities = _getOrderUpdateEntities(
-      oldIndex: oldIndex,
-      newIndex: newIndex,
-    );
+    final sortedEntityEntries = childrenOrderMap.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final currentKeys = sortedEntityEntries.map((e) => e.value.key).toList();
 
-    updateToActualPositions();
+    final sortedSelectedKeys = currentKeys.where((key) => selectedKeys.contains(key)).toList();
+    if (sortedSelectedKeys.isEmpty) return null;
+
+    final remainingKeys = List<Key>.from(currentKeys);
+    for (final key in sortedSelectedKeys) {
+      remainingKeys.remove(key);
+    }
+
+    final targetEntity = childrenOrderMap[newIndex];
+    if (targetEntity == null) return null;
+    final targetKey = targetEntity.key;
+
+    final targetIndexInRemaining = remainingKeys.indexOf(targetKey);
+    if (targetIndexInRemaining == -1) return null;
+
+    final isRightToLeft = newIndex < oldIndex;
+    final insertIndex = isRightToLeft ? targetIndexInRemaining : targetIndexInRemaining + 1;
+
+    final newKeys = List<Key>.from(remainingKeys);
+    newKeys.insertAll(insertIndex, sortedSelectedKeys);
+
+    final orderUpdateEntities = <ReorderUpdateEntity>[];
+
+    for (int i = 0; i < newKeys.length; i++) {
+      final key = newKeys[i];
+      final entity = childrenKeyMap[(key as ValueKey).value]!;
+      final originalOffset = offsetMap[i]!;
+
+      final updatedEntity = entity.dragUpdated(
+        updatedOffset: originalOffset,
+        updatedOrderId: i,
+      );
+
+      childrenKeyMap[key.value] = updatedEntity;
+      childrenOrderMap[i] = updatedEntity;
+
+      final oldIdx = currentKeys.indexOf(key);
+      if (oldIdx != i) {
+        orderUpdateEntities.add(ReorderUpdateEntity(
+          oldIndex: oldIdx,
+          newIndex: i,
+        ));
+      }
+    }
+
     return orderUpdateEntities;
+  }
+
+  List<T> reorderListMulti<T>({
+    required List<T> items,
+    required Set<Key> selectedKeys,
+    required int oldIndex,
+    required int newIndex,
+  }) {
+    if (oldIndex == newIndex) return items;
+
+    final selectedIndices = selectedKeys.map((key) {
+      return childrenKeyMap[(key as ValueKey).value]?.originalOrderId;
+    }).whereType<int>().toSet();
+
+    if (selectedIndices.isEmpty) return items;
+
+    final selectedItems = <T>[];
+    final remainingItems = <T>[];
+    for (int i = 0; i < items.length; i++) {
+      if (selectedIndices.contains(i)) {
+        selectedItems.add(items[i]);
+      } else {
+        remainingItems.add(items[i]);
+      }
+    }
+
+    final targetItem = items[newIndex];
+    final targetIndexInRemaining = remainingItems.indexOf(targetItem);
+    if (targetIndexInRemaining == -1) return items;
+
+    final isRightToLeft = newIndex < oldIndex;
+    final insertIndex = isRightToLeft ? targetIndexInRemaining : targetIndexInRemaining + 1;
+
+    final updatedItems = List<T>.from(remainingItems);
+    updatedItems.insertAll(insertIndex, selectedItems);
+
+    return updatedItems;
   }
 
   void updateReleasedReorderableEntity({

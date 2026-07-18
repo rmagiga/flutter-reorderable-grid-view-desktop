@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_builder_controller.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_drag_and_drop_controller.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_item_builder_controller.dart';
+import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_selection_controller.dart';
 import 'package:flutter_reorderable_grid_view_desktop/entities/released_reorderable_entity.dart';
 import 'package:flutter_reorderable_grid_view_desktop/entities/reorder_update_entity.dart';
 import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_animation_config.dart';
@@ -41,6 +42,8 @@ class ReorderableBuilder<T> extends StatefulWidget {
   static const _defaultFeedbackScaleFactor = 1.05;
   static const _defaultReverse = false;
   static const _defaultAnimationConfig = ReorderableAnimationConfig();
+  static const _defaultEnableMultiSelection = false;
+  static const _defaultEnableSelectAll = true;
 
   /// Defines the children that will be displayed for drag and drop.
   final List<Widget>? children;
@@ -136,6 +139,65 @@ class ReorderableBuilder<T> extends StatefulWidget {
   /// [BoxDecoration] for the child that is dragged around.
   final BoxDecoration? dragChildBoxDecoration;
 
+  // --- 複数選択 パラメータ ---
+
+  /// 複数選択機能の有効/無効。
+  ///
+  /// [selectionController] が渡された場合は自動的に true として扱われます。
+  ///
+  /// Default: false
+  final bool enableMultiSelection;
+
+  /// 選択状態を管理するController。
+  ///
+  /// [TextEditingController] や [ScrollController] と同じパターンです。
+  /// 渡さなければ内部で自動生成します（Uncontrolled モード）。
+  /// 渡した場合は外部から選択状態を制御できます（Controlled モード）。
+  final ReorderableSelectionController? selectionController;
+
+  /// 選択状態が変化した時のコールバック。
+  ///
+  /// Controlled / Uncontrolled どちらのモードでも呼ばれます。
+  /// 引数は現在選択されている [Key] のセットです。
+  final void Function(Set<Key> selectedKeys)? onSelectionChanged;
+
+  /// 選択されたアイテムに適用する [BoxDecoration]。
+  ///
+  /// [selectedBuilder] が指定されている場合は無視されます。
+  /// 未指定の場合はデフォルトの青色ボーダーが適用されます。
+  final BoxDecoration? selectedDecoration;
+
+  /// 選択されたアイテムのカスタムビルダー。
+  ///
+  /// [selectedDecoration] より優先されます。
+  /// チェックマーク、バッジ等の自由なカスタマイズが可能です。
+  ///
+  /// ```dart
+  /// selectedBuilder: (context, child, isSelected) {
+  ///   return Stack(children: [
+  ///     child,
+  ///     if (isSelected)
+  ///       Positioned(top: 4, right: 4,
+  ///         child: Icon(Icons.check_circle, color: Colors.blue)),
+  ///   ]);
+  /// },
+  /// ```
+  final Widget Function(BuildContext context, Widget child, bool isSelected)?
+      selectedBuilder;
+
+  /// Ctrl/Cmd + A による全選択を有効にするか。
+  ///
+  /// [enableMultiSelection] が true の場合のみ有効です。
+  ///
+  /// Default: true
+  final bool enableSelectAll;
+
+  /// 特定のアイテムを選択不可にする述語。
+  ///
+  /// true を返したインデックスのアイテムはクリックしても選択されません。
+  /// [lockedIndices] のアイテムも自動的に選択不可になります。
+  final bool Function(int index)? disabledSelectionPredicate;
+
   /// It's required to use [ReorderableBuilder] to obtain updated [children].
   ///
   /// This function returns the [children] containing all necessary widgets
@@ -215,6 +277,14 @@ class ReorderableBuilder<T> extends StatefulWidget {
     this.onDragStarted,
     this.onDragEnd,
     this.onUpdatedDraggedChild,
+    // 複数選択パラメータ
+    this.enableMultiSelection = _defaultEnableMultiSelection,
+    this.selectionController,
+    this.onSelectionChanged,
+    this.selectedDecoration,
+    this.selectedBuilder,
+    this.enableSelectAll = _defaultEnableSelectAll,
+    this.disabledSelectionPredicate,
     Key? key,
   })  : assert((enableDraggable &&
                 (onReorder != null || onReorderPositions != null)) ||
@@ -246,6 +316,14 @@ class ReorderableBuilder<T> extends StatefulWidget {
     this.onDragStarted,
     this.onDragEnd,
     this.onUpdatedDraggedChild,
+    // 複数選択パラメータ
+    this.enableMultiSelection = _defaultEnableMultiSelection,
+    this.selectionController,
+    this.onSelectionChanged,
+    this.selectedDecoration,
+    this.selectedBuilder,
+    this.enableSelectAll = _defaultEnableSelectAll,
+    this.disabledSelectionPredicate,
     Key? key,
   })  : assert((enableDraggable &&
                 (onReorder != null || onReorderPositions != null)) ||
@@ -253,6 +331,7 @@ class ReorderableBuilder<T> extends StatefulWidget {
         children = null,
         builder = null,
         super(key: key);
+
 
   @override
   State<ReorderableBuilder<T>> createState() => _ReorderableBuilderState();
@@ -263,6 +342,16 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   late final ReorderableBuilderController reorderableBuilderController;
   late final ReorderableItemBuilderController reorderableItemBuilderController;
 
+  /// 選択状態を管理するController。
+  ///
+  /// [widget.selectionController] が指定されていればそれを使用（Controlled）。
+  /// 指定されていなければ内部で生成（Uncontrolled）。
+  late final ReorderableSelectionController _selectionController;
+
+  /// Uncontrolledモード時に内部で生成したかどうか。
+  /// dispose時に内部生成のもののみ廃棄する。
+  bool _isInternalSelectionController = false;
+
   @override
   void initState() {
     super.initState();
@@ -270,6 +359,23 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
 
     reorderableBuilderController = ReorderableBuilderController();
     reorderableItemBuilderController = ReorderableItemBuilderController();
+
+    // SelectionControllerの初期化
+    final externalController = widget.selectionController;
+    if (externalController != null) {
+      // Controlledモード: 外部のControllerを使用
+      _selectionController = externalController;
+      _isInternalSelectionController = false;
+    } else {
+      // Uncontrolledモード: 内部で生成
+      _selectionController = ReorderableSelectionController();
+      _isInternalSelectionController = true;
+    }
+
+    // 選択状態変更時にsetStateでUIを再ビルド
+    if (widget.enableMultiSelection || widget.selectionController != null) {
+      _selectionController.addListener(_handleSelectionChanged);
+    }
 
     final children = widget.children;
     if (children == null) return;
@@ -308,8 +414,20 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
 
   @override
   void dispose() {
+    if (widget.enableMultiSelection || widget.selectionController != null) {
+      _selectionController.removeListener(_handleSelectionChanged);
+    }
+    // Uncontrolledモード時のみ内部コントローラーを廃棄
+    if (_isInternalSelectionController) {
+      _selectionController.dispose();
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _handleSelectionChanged() {
+    widget.onSelectionChanged?.call(_selectionController.selected);
+    setState(() {});
   }
 
   @override
@@ -395,6 +513,21 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     bool isDraggable = !widget.nonDraggableIndices.contains(index) &&
         !widget.lockedIndices.contains(index);
 
+    // 選択機能の有効判定: enableMultiSelectionまたはselectionControllerが渡された場合
+    final isMultiSelectionEnabled =
+        widget.enableMultiSelection || widget.selectionController != null;
+
+    // 選択不可判定: lockedIndicesまたはdisabledSelectionPredicateによる
+    final isSelectionDisabled = widget.lockedIndices.contains(index) ||
+        (widget.disabledSelectionPredicate?.call(index) ?? false);
+
+    // 現在の選択状態を確認（Keyベース）
+    final isSelected = isMultiSelectionEnabled &&
+        _selectionController.isSelected(child.key!);
+
+    // Shift+クリック用の全Keyリストを構範
+    final allKeys = _getAllKeys();
+
     return ReorderableBuilderItem(
       reorderableEntity: reorderableEntity,
       animationConfig: widget.animationConfig,
@@ -413,8 +546,35 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
       onDragStarted: _handleDragStarted,
       onDragEnd: _handleDragEnd,
       onDragCanceled: _handleDragCanceled,
+      // 選択機能パラメータ
+      selectionController: isMultiSelectionEnabled ? _selectionController : null,
+      isSelected: isSelected,
+      isSelectionDisabled: isSelectionDisabled,
+      enableMultiSelection: isMultiSelectionEnabled,
+      enableSelectAll: widget.enableSelectAll,
+      allKeys: allKeys,
+      onSelectionChanged: (selectedKeys) {
+        widget.onSelectionChanged?.call(selectedKeys);
+      },
+      selectedDecoration: widget.selectedDecoration,
+      selectedBuilder: widget.selectedBuilder,
       child: child,
     );
+  }
+
+  /// 現在のGridViewに表示されている全アイテムのKeyリストを返す。
+  ///
+  /// Shift+クリックの範囲選択で使用する。
+  List<Key> _getAllKeys() {
+    final children = widget.children;
+    if (children != null) {
+      return children.map((c) => c.key!).toList();
+    }
+    // builderモード: childrenKeyMapから順序付きで取得
+    final keyMap = _reorderableController.childrenOrderMap;
+    final sortedKeys = keyMap.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    return sortedKeys.map((e) => e.value.key).toList();
   }
 
   ///
@@ -422,12 +582,18 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   ///
 
   void _handleDragStarted(ReorderableEntity reorderableEntity) {
+    final isMultiSelectionEnabled = widget.enableMultiSelection || widget.selectionController != null;
+    if (isMultiSelectionEnabled && !_selectionController.isSelected(reorderableEntity.key)) {
+      _selectionController.clear();
+    }
+
     _reorderableController.handleDragStarted(
       reorderableEntity: reorderableEntity,
       currentScrollOffset: _scrollOffset,
       lockedIndices: widget.lockedIndices,
       isScrollableOutside: _isScrollOutside,
       itemCount: widget.itemCount,
+      selectedKeys: isMultiSelectionEnabled ? _selectionController.selected : <Key>{},
     );
     widget.onDragStarted?.call(reorderableEntity.updatedOrderId);
 
@@ -497,7 +663,12 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     final draggedEntity = _reorderableController.draggedEntity;
     if (draggedEntity == null) return;
 
-    widget.onDragEnd?.call(draggedEntity.updatedOrderId);
+    final draggedKey = draggedEntity.key;
+    final isMultiSelection = _reorderableController.selectedKeys.contains(draggedKey);
+    final oldIndex = draggedEntity.originalOrderId;
+    final newIndex = draggedEntity.updatedOrderId;
+
+    widget.onDragEnd?.call(newIndex);
 
     final reorderUpdateEntities = _reorderableController.handleDragEnd();
 
@@ -507,10 +678,19 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
 
       widget.onReorderPositions?.call(reorderUpdateEntities);
 
-      widget.onReorder?.call((items) => _reorderableController.reorderList(
-            items: items,
-            reorderUpdateEntities: reorderUpdateEntities,
-          ));
+      if (isMultiSelection) {
+        widget.onReorder?.call((items) => _reorderableController.reorderListMulti(
+              items: items,
+              selectedKeys: _reorderableController.selectedKeys,
+              oldIndex: oldIndex,
+              newIndex: newIndex,
+            ));
+      } else {
+        widget.onReorder?.call((items) => _reorderableController.reorderList(
+              items: items,
+              reorderUpdateEntities: reorderUpdateEntities,
+            ));
+      }
     }
   }
 

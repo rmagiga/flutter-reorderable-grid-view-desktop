@@ -9,7 +9,7 @@ abstract class ReorderableController {
   // TODO(karvulf): nochmal prüfen, ob die orderId hier immer über die updated oder originalOrderId gesetzt wird, falls nicht riecht das nach fehleranfälligkeit
   final childrenOrderMap = <int, ReorderableEntity>{};
 
-  final childrenKeyMap = <String, ReorderableEntity>{};
+  final childrenKeyMap = <dynamic, ReorderableEntity>{};
 
   final offsetMap = <int, Offset>{};
 
@@ -149,7 +149,7 @@ abstract class ReorderableController {
   /// At the end [childrenKeyMap] and [childrenOrderMap] are replaced with the
   /// updated maps.
   void updateToActualPositions() {
-    var updatedChildrenKeyMap = <String, ReorderableEntity>{};
+    var updatedChildrenKeyMap = <dynamic, ReorderableEntity>{};
     var updatedChildrenOrderMap = <int, ReorderableEntity>{};
 
     for (final entry in childrenKeyMap.entries) {
@@ -166,7 +166,7 @@ abstract class ReorderableController {
   }
 
   void replaceMaps({
-    required Map<String, ReorderableEntity> updatedChildrenKeyMap,
+    required Map<dynamic, ReorderableEntity> updatedChildrenKeyMap,
     required Map<int, ReorderableEntity> updatedChildrenOrderMap,
   }) {
     childrenOrderMap.clear();

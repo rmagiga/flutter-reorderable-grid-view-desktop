@@ -3,6 +3,7 @@ import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_anima
 import 'package:flutter_reorderable_grid_view_desktop/widgets/custom_draggable.dart';
 import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_builder.dart';
 import 'package:flutter_reorderable_grid_view_desktop_example/widgets/change_children_bar.dart';
+import 'package:flutter_reorderable_grid_view_desktop_example/other_examples/multi_selection_example.dart';
 
 enum ReorderableType {
   gridView,
@@ -23,7 +24,7 @@ void main() {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.dark,
-      home: const MyApp(),
+      home: const MultiSelectionExample(),
     ),
   );
 }
