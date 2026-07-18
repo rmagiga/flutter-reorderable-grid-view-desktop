@@ -103,15 +103,12 @@ class ReorderableDraggableState extends State<ReorderableDraggable>
 
   bool _shouldStartDrag(Offset globalPosition) {
     if (widget.buildDefaultDragHandles) {
-      debugPrint('[ReorderableDraggable] _shouldStartDrag: buildDefaultDragHandles is true -> allow drag');
       return true;
     }
     if (_dragHandleRenderBox == null) {
-      debugPrint('[ReorderableDraggable] _shouldStartDrag: _dragHandleRenderBox is null -> deny drag');
       return false;
     }
     if (!_dragHandleRenderBox!.attached) {
-      debugPrint('[ReorderableDraggable] _shouldStartDrag: _dragHandleRenderBox is not attached -> deny drag');
       return false;
     }
 
@@ -122,10 +119,8 @@ class ReorderableDraggableState extends State<ReorderableDraggable>
           localPosition.dy >= 0 &&
           localPosition.dx <= size.width &&
           localPosition.dy <= size.height;
-      debugPrint('[ReorderableDraggable] _shouldStartDrag: localPosition=$localPosition, size=$size -> allowed=$allowed');
       return allowed;
     } catch (e) {
-      debugPrint('[ReorderableDraggable] _shouldStartDrag: error checking bounds: $e -> deny drag');
       return false;
     }
   }
@@ -253,7 +248,6 @@ class ReorderableDraggableState extends State<ReorderableDraggable>
 
   /// Called after dragging started.
   void _handleDragStarted() {
-    debugPrint('[ReorderableDraggable] _handleDragStarted called!');
     isDragging = true;
     widget.onDragStarted();
     _decoratedBoxAnimationController.forward();
@@ -353,7 +347,6 @@ class _CustomImmediateMultiDragGestureRecognizer extends ImmediateMultiDragGestu
   @override
   void addAllowedPointer(PointerDownEvent event) {
     final allowed = shouldStartDrag(event.position);
-    debugPrint('[CustomRecognizer] Immediate: addAllowedPointer allowed=$allowed');
     if (allowed) {
       super.addAllowedPointer(event);
     }

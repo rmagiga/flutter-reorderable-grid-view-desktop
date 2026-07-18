@@ -116,8 +116,6 @@ class _MultiSelectionExampleState extends State<MultiSelectionExample> {
                 },
                 onSelectionChanged: (selectedKeys) {
                   setState(() {});
-                  // 選択変更のログ（任意）
-                  debugPrint('選択中: ${selectedKeys.length}件');
                 },
                 scrollController: _scrollController,
                 children: _buildChildren(),

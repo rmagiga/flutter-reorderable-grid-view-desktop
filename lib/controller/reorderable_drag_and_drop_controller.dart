@@ -72,7 +72,6 @@ class ReorderableDragAndDropController extends ReorderableController {
     final sortedByUpdated = childrenKeyMap.values.toList()
       ..sort((a, b) => a.updatedOrderId.compareTo(b.updatedOrderId));
     _keysAtDragStart = sortedByUpdated.map((e) => e.key).toList();
-    debugPrint('[Controller] handleDragStarted: saved _keysAtDragStart=$_keysAtDragStart');
 
     if (itemCount != null) super.shortenMapsToItemCount(itemCount: itemCount);
   }
@@ -164,9 +163,7 @@ class ReorderableDragAndDropController extends ReorderableController {
     int oldIndex,
     int newIndex,
   ) {
-    debugPrint('[Controller] _handleMultiSelectionDragEnd: draggedKey=$draggedKey, oldIndex=$oldIndex, newIndex=$newIndex');
     if (oldIndex == newIndex) {
-      debugPrint('[Controller] _handleMultiSelectionDragEnd: oldIndex == newIndex -> null');
       return null;
     }
 
@@ -175,16 +172,13 @@ class ReorderableDragAndDropController extends ReorderableController {
     final sortedByUpdated = childrenKeyMap.values.toList()
       ..sort((a, b) => a.updatedOrderId.compareTo(b.updatedOrderId));
     final currentKeys = sortedByUpdated.map((e) => e.key).toList();
-    debugPrint('[Controller] _handleMultiSelectionDragEnd: currentKeys=$currentKeys');
 
     // 選択アイテムはドラッグ開始前の順序（_keysAtDragStart）で並べる
     // currentKeys はドラッグ中のスワップで順序が変わっているため使用しない
     final sortedSelectedKeys = _keysAtDragStart
         .where((key) => selectedKeys.contains(key))
         .toList();
-    debugPrint('[Controller] _handleMultiSelectionDragEnd: sortedSelectedKeys=$sortedSelectedKeys');
     if (sortedSelectedKeys.isEmpty) {
-      debugPrint('[Controller] _handleMultiSelectionDragEnd: sortedSelectedKeys is empty -> null');
       return null;
     }
 
@@ -193,7 +187,6 @@ class ReorderableDragAndDropController extends ReorderableController {
     for (final key in sortedSelectedKeys) {
       remainingKeys.remove(key);
     }
-    debugPrint('[Controller] _handleMultiSelectionDragEnd: remainingKeys=$remainingKeys');
 
     // insertIndex を _keysAtDragStart 基準の非選択数で算出する
     // （reorderListMulti と同じロジック）
@@ -214,11 +207,9 @@ class ReorderableDragAndDropController extends ReorderableController {
       }
     }
     final insertIndex = nonSelectedCount;
-    debugPrint('[Controller] _handleMultiSelectionDragEnd: calculated insertIndex=$insertIndex');
 
     final newKeys = List<Key>.from(remainingKeys);
     newKeys.insertAll(insertIndex, sortedSelectedKeys);
-    debugPrint('[Controller] _handleMultiSelectionDragEnd: newKeys=$newKeys');
 
     // reorderListMulti で items を同順に並び替えられるよう保存する
     _multiSelectionNewKeys = newKeys;
@@ -230,7 +221,6 @@ class ReorderableDragAndDropController extends ReorderableController {
       final value = (key as ValueKey).value;
       final entity = childrenKeyMap[value];
       if (entity == null) {
-        debugPrint('[Controller] Warning: key=$key (value=$value) not found in childrenKeyMap!');
         continue;
       }
       final originalOffset = offsetMap[i] ?? Offset.zero;
@@ -252,7 +242,6 @@ class ReorderableDragAndDropController extends ReorderableController {
       }
     }
 
-    debugPrint('[Controller] _handleMultiSelectionDragEnd: orderUpdateEntities=$orderUpdateEntities');
     return orderUpdateEntities;
   }
 
@@ -262,25 +251,12 @@ class ReorderableDragAndDropController extends ReorderableController {
     required int oldIndex,
     required int newIndex,
   }) {
-    debugPrint('[Controller] reorderListMulti: oldIndex=$oldIndex, newIndex=$newIndex, selectedKeys=$selectedKeys');
-    debugPrint('[Controller] reorderListMulti: items(${items.length})=$items');
-
     // _handleMultiSelectionDragEnd で計算した newKeys（UIの目標順序）を使って items を並び替える。
     // _keysAtDragStart[i] が items[i] に対応するという前提で、
     // newKeys[i] に対応する items のアイテムを特定する。
     final newKeys = _multiSelectionNewKeys;
     if (newKeys == null || newKeys.isEmpty) {
-      debugPrint('[Controller] reorderListMulti: newKeys is null -> return original items');
       return items;
-    }
-
-    // === 調査ログ: _keysAtDragStart と items の対応チェック ===
-    debugPrint('[Controller] reorderListMulti: === _keysAtDragStart(${_keysAtDragStart.length}) vs items(${items.length}) ===');
-    for (int i = 0; i < _keysAtDragStart.length && i < items.length; i++) {
-      debugPrint('[Controller] reorderListMulti:   [$i] key=${_keysAtDragStart[i]}, items[$i]=${items[i]}');
-    }
-    if (_keysAtDragStart.length != items.length) {
-      debugPrint('[Controller] reorderListMulti: ⚠️長さ不一致! _keysAtDragStart=${_keysAtDragStart.length}, items=${items.length}');
     }
 
     // _keysAtDragStart での各 Key のインデックス（= items での元インデックス）を引く
@@ -289,23 +265,12 @@ class ReorderableDragAndDropController extends ReorderableController {
       keyToItemIndex[_keysAtDragStart[i]] = i;
     }
 
-    // === 調査ログ: newKeys マッピング詳細 ===
-    debugPrint('[Controller] reorderListMulti: === newKeys マッピング(${newKeys.length}件) ===');
-    for (int i = 0; i < newKeys.length; i++) {
-      final key = newKeys[i];
-      final itemIdx = keyToItemIndex[key];
-      final item = (itemIdx != null && itemIdx < items.length) ? items[itemIdx] : 'N/A(対応なし)';
-      debugPrint('[Controller] reorderListMulti:   newKeys[$i]=$key -> _keysAtDragStart index=$itemIdx -> items[$itemIdx]=$item');
-    }
-
     // newKeys の順序に従って items を並び替える
     final updatedItems = <T>[];
     for (final key in newKeys) {
       final itemIndex = keyToItemIndex[key];
       if (itemIndex != null && itemIndex < items.length) {
         updatedItems.add(items[itemIndex]);
-      } else {
-        debugPrint('[Controller] reorderListMulti: ⚠️ key=$key は _keysAtDragStart に存在しないか範囲外');
       }
     }
 
@@ -318,12 +283,10 @@ class ReorderableDragAndDropController extends ReorderableController {
       for (int i = 0; i < items.length; i++) {
         if (!usedIndices.contains(i)) {
           updatedItems.add(items[i]);
-          debugPrint('[Controller] reorderListMulti: 末尾追加: items[$i]=${items[i]}');
         }
       }
     }
 
-    debugPrint('[Controller] reorderListMulti: updatedItems=$updatedItems');
     return updatedItems;
   }
 

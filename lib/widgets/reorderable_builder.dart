@@ -598,12 +598,8 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     final isMultiSelectionEnabled = widget.enableMultiSelection || widget.selectionController != null;
     final key = reorderableEntity.key;
     final isSelected = _selectionController.isSelected(key);
-    final selectedKeys = _selectionController.selected;
     
-    debugPrint('[ReorderableBuilder] _handleDragStarted: key=$key, isSelected=$isSelected, selectedKeys=$selectedKeys');
-
     if (isMultiSelectionEnabled && !isSelected) {
-      debugPrint('[ReorderableBuilder] _handleDragStarted: key is not selected -> clearing selection');
       _selectionController.clear();
     }
 
@@ -681,7 +677,6 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
 
   void _finishDragging() {
     if (_isFinishingDragging) {
-      debugPrint('[ReorderableBuilder] _finishDragging: blocked by reentrancy guard');
       return;
     }
     _isFinishingDragging = true;
@@ -689,7 +684,6 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     try {
       final draggedEntity = _reorderableController.draggedEntity;
       if (draggedEntity == null) {
-        debugPrint('[ReorderableBuilder] _finishDragging: draggedEntity is null');
         return;
       }
 
@@ -698,8 +692,6 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
       final isMultiSelection = controllerSelectedKeys.contains(draggedKey);
       final oldIndex = draggedEntity.originalOrderId;
       final newIndex = draggedEntity.updatedOrderId;
-
-      debugPrint('[ReorderableBuilder] _finishDragging: draggedKey=$draggedKey, controllerSelectedKeys=$controllerSelectedKeys, isMultiSelection=$isMultiSelection');
 
       widget.onDragEnd?.call(newIndex);
 
@@ -712,7 +704,6 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
         widget.onReorderPositions?.call(reorderUpdateEntities);
 
         if (isMultiSelection) {
-          debugPrint('[ReorderableBuilder] _finishDragging: executing reorderListMulti');
           widget.onReorder?.call((items) => _reorderableController.reorderListMulti(
                 items: items,
                 selectedKeys: _reorderableController.selectedKeys,
@@ -720,7 +711,6 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
                 newIndex: newIndex,
               ));
         } else {
-          debugPrint('[ReorderableBuilder] _finishDragging: executing reorderList (single)');
           widget.onReorder?.call((items) => _reorderableController.reorderList(
                 items: items,
                 reorderUpdateEntities: reorderUpdateEntities,

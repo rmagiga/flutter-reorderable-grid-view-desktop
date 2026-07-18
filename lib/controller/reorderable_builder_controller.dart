@@ -39,12 +39,6 @@ class ReorderableBuilderController extends ReorderableDragAndDropController {
     var updatedChildrenKeyMap = <dynamic, ReorderableEntity>{};
     var updatedChildrenOrderMap = <int, ReorderableEntity>{};
 
-    // === 調査ログ: updateChildren 前の状態 ===
-    final sortedBefore = childrenOrderMap.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    debugPrint('[updateChildren] Before: childrenOrderMap order = ${sortedBefore.map((e) => "${e.key}:${e.value.key}").toList()}');
-    debugPrint('[updateChildren] Input children keys = ${children.map((c) => c.key).toList()}');
-
     var index = 0;
     for (final child in children) {
       final reorderableEntity = getReorderableEntity(
@@ -60,11 +54,6 @@ class ReorderableBuilderController extends ReorderableDragAndDropController {
       updatedChildrenKeyMap[reorderableEntity.key.value] = reorderableEntity;
       index++;
     }
-
-    // === 調査ログ: updateChildren 後の状態 ===
-    final sortedAfter = updatedChildrenOrderMap.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    debugPrint('[updateChildren] After: updatedChildrenOrderMap order = ${sortedAfter.map((e) => "${e.key}:${e.value.key}(orig=${e.value.originalOrderId},upd=${e.value.updatedOrderId})").toList()}');
 
     replaceMaps(
       updatedChildrenKeyMap: updatedChildrenKeyMap,

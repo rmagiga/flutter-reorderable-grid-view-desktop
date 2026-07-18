@@ -46,13 +46,6 @@ class _ReorderableGridDragStartListenerState extends State<ReorderableGridDragSt
     if (!mounted) return;
     final state = ReorderableDraggableProvider.of(context);
     final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox != null) {
-      try {
-        final position = renderBox.localToGlobal(Offset.zero);
-        final size = renderBox.size;
-        debugPrint('[DragStartListener] Registered handle: pos=$position, size=$size');
-      } catch (_) {}
-    }
     state?.registerDragHandle(renderBox);
   }
 
