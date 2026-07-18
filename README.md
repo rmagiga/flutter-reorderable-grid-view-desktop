@@ -19,9 +19,12 @@ Package for having animated Drag and Drop functionality for every type of `GridV
   - [Drag and Drop](#drag-and-drop)
   - [Scroll while dragging](#scroll-while-dragging)
   - [Animations](#animations)
+  - [Multi-Selection](#multi-selection)
+  - [Drag Handle](#drag-handle)
 - [Supported Widgets](#supported-widgets)
 - [Parameters](#parameters)
   - [AnimationConfig Parameters](#animationconfig-parameters)
+  - [ReorderableSelectionController](#reorderableselectioncontroller)
 - [Road Map](#road-map)
 - [Future Plans](#future-plans)
 
@@ -34,6 +37,8 @@ Enhance your Flutter app with this package to:
   - Works seamlessly with any GridView.
   - For GridView.builder, use ReorderableBuilder.builder to implement drag-and-drop.
 - Add smooth animations for adding, removing, or updating items in your grid.
+- **Multi-selection with drag and drop**: Select multiple items and reorder them together.
+- **Drag handle support**: Use a dedicated drag handle widget to initiate dragging.
 
 ## Getting started
 
@@ -148,6 +153,95 @@ While dragging, the movement of the other children is also animated.
 These animations occur when updating your list of children by adding, removing, or modifying items.
 For example, adding or removing a child at the beginning of the list affects the positions of all subsequent children (See the GIFs at the top of the page for examples).
 
+### Multi-Selection
+
+You can enable multi-selection to allow users to select multiple items and reorder them together as a group.
+
+Set `enableMultiSelection: true` on `ReorderableBuilder` to enable this feature.
+
+**Keyboard shortcuts (when an item is focused)**:
+- **Click**: Single select (deselects others)
+- **Ctrl/Cmd + Click**: Toggle selection
+- **Shift + Click**: Range selection
+- **Space / Enter**: Toggle selection of focused item
+- **Escape**: Clear all selections
+- **Ctrl/Cmd + A**: Select all (when `enableSelectAll` is `true`)
+
+> On macOS, `Cmd` (Meta) key is used automatically instead of `Ctrl`.
+
+```dart
+ReorderableBuilder(
+  children: generatedChildren,
+  enableMultiSelection: true,
+  onSelectionChanged: (Set<Key> selectedKeys) {
+    setState(() {
+      _selectedKeys = selectedKeys;
+    });
+  },
+  selectedBuilder: (context, child, isSelected) {
+    return Stack(children: [
+      child,
+      if (isSelected)
+        Positioned(
+          top: 4, right: 4,
+          child: Icon(Icons.check_circle, color: Colors.blue),
+        ),
+    ]);
+  },
+  onReorder: (ReorderedListFunction reorderedListFunction) {
+    setState(() {
+      _fruits = reorderedListFunction(_fruits) as List<String>;
+    });
+  },
+  builder: (children) => GridView(...),
+)
+```
+
+To control the selection state externally (Controlled mode), pass a `ReorderableSelectionController`:
+
+```dart
+final _selectionController = ReorderableSelectionController();
+
+ReorderableBuilder(
+  selectionController: _selectionController,
+  // ...
+)
+
+// External operations
+_selectionController.selectAll(allKeys);
+_selectionController.clear();
+print(_selectionController.selected); // current selection set
+```
+
+*For more details, check out the example in `multi_selection_example.dart`.*
+
+### Drag Handle
+
+By default, dragging can be initiated from anywhere on an item. You can restrict drag initiation to a specific handle widget by setting `buildDefaultDragHandles: false` and wrapping the handle with `ReorderableGridDragStartListener`.
+
+```dart
+ReorderableBuilder(
+  buildDefaultDragHandles: false,
+  children: List.generate(
+    _fruits.length,
+    (index) => Container(
+      key: Key(_fruits[index]),
+      child: Row(
+        children: [
+          // Only this handle initiates drag
+          ReorderableGridDragStartListener(
+            index: index,
+            child: const Icon(Icons.drag_handle),
+          ),
+          Text(_fruits[index]),
+        ],
+      ),
+    ),
+  ),
+  // ...
+)
+```
+
 ### Supported Widgets
 
 * Using `ReorderableBuilder` supports
@@ -173,6 +267,7 @@ For example, adding or removing a child at the beginning of the list affects the
 | `enableDraggable`              | Enables the drag and drop functionality.                                                                                 |     **true**      |
 | `enableScrollingWhileDragging` | Enables the functionality to scroll while dragging a child to the top or bottom.                                         |     **true**      |
 | `automaticScrollExtent`        | Defines the height of the top or bottom before the dragged child indicates a scrolling.                                  |    **150.0**      |
+| `feedbackScaleFactor`          | Scale factor applied to the feedback widget during a drag operation. A value of 1.0 means no scaling.                   |    **1.05**       |
 | `dragChildBoxDecoration`       | When a child is dragged, you can override the default BoxDecoration of the dragged child.                                |       **-**       |
 | `reverse`                      | Handles the reversed order of your children. Ensure to add this flag to your scrollable and this widget.                |     **false**     |
 | `builder`                      | It's required to use [ReorderableBuilder] to obtain updated [children].                                                  |       **-**       |
@@ -181,6 +276,14 @@ For example, adding or removing a child at the beginning of the list affects the
 | `onDragEnd`                    | Callback when the dragged child was released with the index.                                                             |       **-**       |
 | `onUpdatedDraggedChild`        | Called when the dragged child has updated his position while dragging.                                                   |       **-**       |
 | `scrollController`             | `ScrollController` which should be also assigned to the scrollable widget. Don't forget this to prevent animation issues.|       **-**       |
+| `enableMultiSelection`         | Enables multi-selection functionality. Automatically enabled when `selectionController` is provided.                     |     **false**     |
+| `selectionController`          | Controller to manage selection state externally (Controlled mode). If not provided, an internal controller is created.  |       **-**       |
+| `onSelectionChanged`           | Callback called when the selection state changes. The argument is the current set of selected `Key`s.                   |       **-**       |
+| `selectedDecoration`           | `BoxDecoration` applied to selected items. Ignored when `selectedBuilder` is specified.                                 |       **-**       |
+| `selectedBuilder`              | Custom builder for selected items. Takes priority over `selectedDecoration`. Allows custom UI like checkmarks or badges. |       **-**       |
+| `enableSelectAll`              | Enables Ctrl/Cmd + A to select all items. Only effective when `enableMultiSelection` is true.                           |     **true**      |
+| `disabledSelectionPredicate`   | Predicate to disable selection for specific items by index. Items in `lockedIndices` are also automatically disabled.   |       **-**       |
+| `buildDefaultDragHandles`      | Whether to allow dragging from anywhere on an item. Set to false to use `ReorderableGridDragStartListener` instead.     |     **true**      |
 
 ### AnimationConfig Parameters
 
@@ -216,6 +319,40 @@ Ensure this widget wraps the child you intend to add to your `GridView`, as it s
     child: Placeholder(),
   ),
 ```
+
+### `ReorderableSelectionController`
+
+`ReorderableSelectionController` manages the selection state of items in a `GridView`.
+Use it in the same pattern as `TextEditingController` or `ScrollController`.
+
+Pass it to `ReorderableBuilder`'s `selectionController` parameter to control selection state externally (Controlled mode).
+If not provided, `ReorderableBuilder` creates one internally (Uncontrolled mode).
+
+| **Method / Property**       | **Description**                                                                 |
+|:----------------------------|:--------------------------------------------------------------------------------|
+| `selected`                  | The current set of selected `Key`s (read-only).                                 |
+| `lastSelectedKey`           | The last selected `Key`, used as the anchor for Shift+click range selection.    |
+| `isSelected(key)`           | Returns whether the given `key` is currently selected.                          |
+| `select(key)`               | Selects the given `key`.                                                        |
+| `deselect(key)`             | Deselects the given `key`.                                                      |
+| `toggle(key)`               | Toggles the selection state of the given `key`.                                 |
+| `selectAll(keys)`           | Selects all given `key`s.                                                       |
+| `selectRange(...)`          | Selects a range of items between `startKey` and `endKey` based on `allKeys`.    |
+| `clear()`                   | Clears all selections.                                                          |
+| `removeStaleKeys(validKeys)`| Removes keys that are no longer valid (e.g., after item deletion).              |
+
+### `ReorderableGridDragStartListener`
+
+A widget that wraps a drag handle (e.g., a hamburger icon `≡`). When used together with `buildDefaultDragHandles: false`, dragging only starts when this handle is dragged.
+
+```dart
+ReorderableGridDragStartListener(
+  index: index,
+  child: const Icon(Icons.drag_handle),
+)
+```
+
+`ReorderableGridDelayedDragStartListener` is a variant that behaves like long-press dragging (same as when `enableLongPress` is enabled on the parent).
 
 ## Road map for release of version `6.0.0`
 * Code Refactoring for easier understanding!

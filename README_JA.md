@@ -19,9 +19,12 @@
   - [ドラッグ＆ドロップ](#ドラッグ＆ドロップ)
   - [ドラッグ中のスクロール](#ドラッグ中のスクロール)
   - [アニメーション](#アニメーション)
+  - [複数選択](#複数選択)
+  - [ドラッグハンドル](#ドラッグハンドル)
 - [サポートされているウィジェット](#サポートされているウィジェット)
 - [パラメータ](#パラメータ)
   - [AnimationConfig パラメータ](#animationconfig-パラメータ)
+  - [ReorderableSelectionController](#reorderableselectioncontroller)
 - [ロードマップ](#ロードマップ)
 - [今後の計画](#今後の計画)
 
@@ -34,6 +37,8 @@
   - 任意の `GridView` とシームレスに動作します。
   - `GridView.builder` の場合、ドラッグ＆ドロップの実装には `ReorderableBuilder.builder` を使用します。
 - グリッド内のアイテムの追加、削除、更新時にスムーズなアニメーションを追加します。
+- **複数選択＆ドラッグ＆ドロップ**：複数のアイテムを選択してまとめて並べ替えられます。
+- **ドラッグハンドル対応**：専用のハンドルウィジェットからのみドラッグを開始できます。
 
 ## はじめに
 
@@ -148,6 +153,93 @@ class _MyAppState extends State<MyApp> {
 これらのアニメーションは、アイテムの追加、削除、または変更によって子要素のリストを更新するときに発生します。
 たとえば、リストの先頭で子要素を追加または削除すると、それ以降のすべての子要素の位置に影響します（例については、ページ上部の GIF を参照してください）。
 
+### 複数選択
+
+`enableMultiSelection: true` を `ReorderableBuilder` に設定することで、複数アイテムを選択してまとめてドラッグ＆ドロップで並べ替えられます。
+
+**キーボードショートカット（アイテムにフォーカスがある場合）**：
+- **クリック**: 単一選択（他の選択は解除）
+- **Ctrl/Cmd + クリック**: トグル選択
+- **Shift + クリック**: 範囲選択
+- **Space / Enter**: フォーカスアイテムの選択トグル
+- **Escape**: 全選択解除
+- **Ctrl/Cmd + A**: 全選択（`enableSelectAll` が `true` の場合）
+
+> macOS では `Ctrl` の代わりに `Cmd` (Meta) キーが自動的に使用されます。
+
+```dart
+ReorderableBuilder(
+  children: generatedChildren,
+  enableMultiSelection: true,
+  onSelectionChanged: (Set<Key> selectedKeys) {
+    setState(() {
+      _selectedKeys = selectedKeys;
+    });
+  },
+  selectedBuilder: (context, child, isSelected) {
+    return Stack(children: [
+      child,
+      if (isSelected)
+        Positioned(
+          top: 4, right: 4,
+          child: Icon(Icons.check_circle, color: Colors.blue),
+        ),
+    ]);
+  },
+  onReorder: (ReorderedListFunction reorderedListFunction) {
+    setState(() {
+      _fruits = reorderedListFunction(_fruits) as List<String>;
+    });
+  },
+  builder: (children) => GridView(...),
+)
+```
+
+外部から選択状態を制御する場合（Controlled モード）は、`ReorderableSelectionController` を渡します：
+
+```dart
+final _selectionController = ReorderableSelectionController();
+
+ReorderableBuilder(
+  selectionController: _selectionController,
+  // ...
+)
+
+// 外部からの操作
+_selectionController.selectAll(allKeys);
+_selectionController.clear();
+print(_selectionController.selected); // 現在の選択セット
+```
+
+*詳細については、`multi_selection_example.dart` の例を確認してください。*
+
+### ドラッグハンドル
+
+デフォルトでは、アイテムのどこからでもドラッグを開始できます。`buildDefaultDragHandles: false` を設定し、ハンドルとなるウィジェットを `ReorderableGridDragStartListener` でラップすることで、そのハンドル部分からのみドラッグを開始できるようになります。
+
+```dart
+ReorderableBuilder(
+  buildDefaultDragHandles: false,
+  children: List.generate(
+    _fruits.length,
+    (index) => Container(
+      key: Key(_fruits[index]),
+      child: Row(
+        children: [
+          // このハンドルのみドラッグを開始できる
+          ReorderableGridDragStartListener(
+            index: index,
+            child: const Icon(Icons.drag_handle),
+          ),
+          Text(_fruits[index]),
+        ],
+      ),
+    ),
+  ),
+  // ...
+)
+```
+
 ### サポートされているウィジェット
 
 * `ReorderableBuilder` の使用でサポートされるもの：
@@ -173,6 +265,7 @@ class _MyAppState extends State<MyApp> {
 | `enableDraggable`              | ドラッグ＆ドロップ機能を有効にします。                                                                                     |     **true**      |
 | `enableScrollingWhileDragging` | 子要素を上部または下部にドラッグしたときにスクロールする機能を有効にします。                                                     |     **true**      |
 | `automaticScrollExtent`        | ドラッグされた子要素がスクロールを示すまでの上部または下部の高さを定義します。                                              |    **150.0**      |
+| `feedbackScaleFactor`          | ドラッグ中のフィードバックウィジェットに適用するスケール係数。1.0 はスケールなし。                                            |    **1.05**       |
 | `dragChildBoxDecoration`       | 子要素がドラッグされているとき、ドラッグされた子要素のデフォルトの `BoxDecoration` をオーバーライドできます。                  |       **-**       |
 | `reverse`                      | 子要素の順序を反転して処理します。スクロール可能ウィジェットとこのウィジェットの両方にこのフラグを追加してください。            |     **false**     |
 | `builder`                      | 更新された `children` を取得するために `ReorderableBuilder` を使用する必要があります。                                      |       **-**       |
@@ -181,6 +274,14 @@ class _MyAppState extends State<MyApp> {
 | `onDragEnd`                    | ドラッグされた子要素が離されたときに、そのインデックスとともに呼び出されるコールバック。                                           |       **-**       |
 | `onUpdatedDraggedChild`        | ドラッグ中にドラッグされた子要素の位置が更新されたときに呼び出されます。                                                       |       **-**       |
 | `scrollController`             | スクロール可能なウィジェットにも割り当てる必要がある `ScrollController`。アニメーションの問題を防ぐために、これを忘れないでください。 |       **-**       |
+| `enableMultiSelection`         | 複数選択機能を有効にします。`selectionController` が渡された場合は自動的に有効になります。                                   |     **false**     |
+| `selectionController`          | 外部から選択状態を管理するController（Controlledモード）。渡さない場合は内部で自動生成します（Uncontrolledモード）。           |       **-**       |
+| `onSelectionChanged`           | 選択状態が変化したときに呼び出されるコールバック。引数は現在選択されている `Key` のセットです。                                |       **-**       |
+| `selectedDecoration`           | 選択されたアイテムに適用する `BoxDecoration`。`selectedBuilder` が指定されている場合は無視されます。                         |       **-**       |
+| `selectedBuilder`              | 選択されたアイテムのカスタムビルダー。`selectedDecoration` より優先されます。チェックマークやバッジなど自由にカスタマイズできます。 |       **-**       |
+| `enableSelectAll`              | Ctrl/Cmd + A による全選択を有効にします。`enableMultiSelection` が `true` の場合のみ有効です。                              |     **true**      |
+| `disabledSelectionPredicate`   | 特定のインデックスのアイテムを選択不可にする述語。`lockedIndices` のアイテムも自動的に選択不可になります。                      |       **-**       |
+| `buildDefaultDragHandles`      | アイテムのどこからでもドラッグを開始できるかどうか。`false` にすると `ReorderableGridDragStartListener` のみで開始できます。  |     **true**      |
 
 ### AnimationConfig パラメータ
 
@@ -216,6 +317,40 @@ class _MyAppState extends State<MyApp> {
     child: Placeholder(),
   ),
 ```
+
+### `ReorderableSelectionController`
+
+`ReorderableSelectionController` は `GridView` 内の子要素の選択状態を管理するコントローラーです。
+`TextEditingController` や `ScrollController` と同じパターンで使用します。
+
+`ReorderableBuilder` の `selectionController` パラメータに渡すことで、外部から選択状態を制御できます（Controlled モード）。
+渡さない場合は `ReorderableBuilder` が内部で自動生成します（Uncontrolled モード）。
+
+| **メソッド / プロパティ**           | **説明**                                                                          |
+|:------------------------------------|:----------------------------------------------------------------------------------|
+| `selected`                          | 現在選択されている `Key` のセット（読み取り専用）。                               |
+| `lastSelectedKey`                   | Shift+クリックの範囲選択の起点となる、最後に選択した `Key`。                      |
+| `isSelected(key)`                   | 指定した `key` が現在選択されているか判定します。                                  |
+| `select(key)`                       | 指定した `key` を選択します。                                                     |
+| `deselect(key)`                     | 指定した `key` の選択を解除します。                                               |
+| `toggle(key)`                       | 指定した `key` の選択状態をトグルします。                                         |
+| `selectAll(keys)`                   | 指定した全ての `key` を選択します。                                               |
+| `selectRange(...)`                  | `allKeys` を基準に `startKey` から `endKey` までの範囲を選択します。               |
+| `clear()`                           | 全ての選択を解除します。                                                          |
+| `removeStaleKeys(validKeys)`        | 無効になったキー（アイテム削除後など）を選択セットから取り除きます。              |
+
+### `ReorderableGridDragStartListener`
+
+ドラッグハンドル（例：三本線アイコン `≡`）をラップするウィジェットです。`buildDefaultDragHandles: false` と組み合わせて使用することで、そのハンドル部分をドラッグしたときのみ並び替えが開始されます。
+
+```dart
+ReorderableGridDragStartListener(
+  index: index,
+  child: const Icon(Icons.drag_handle),
+)
+```
+
+`ReorderableGridDelayedDragStartListener` は長押しドラッグと同様の動作をするバリアントです（親の `enableLongPress` が有効な場合と同様）。
 
 ## バージョン `6.0.0` リリースのロードマップ
 * 理解しやすくするためのコードのリファクタリング！
