@@ -10,7 +10,9 @@ import 'package:flutter_reorderable_grid_view_desktop/widgets/widgets.dart';
 /// - Ctrl/Cmd + A: 全選択
 /// - Escape: 全選択解除
 class MultiSelectionExample extends StatefulWidget {
-  const MultiSelectionExample({super.key});
+  const MultiSelectionExample({super.key, this.showAppBar = true});
+
+  final bool showAppBar;
 
   @override
   State<MultiSelectionExample> createState() => _MultiSelectionExampleState();
@@ -40,46 +42,48 @@ class _MultiSelectionExampleState extends State<MultiSelectionExample> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('複数選択デモ'),
-        actions: [
-          // 選択件数バッジ
-          ListenableBuilder(
-            listenable: _selectionController,
-            builder: (context, _) {
-              final count = _selectionController.selected.length;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Center(
-                  child: Text(
-                    count > 0 ? '$count 件選択中' : '未選択',
-                    style: TextStyle(
-                      color: count > 0
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                      fontWeight:
-                          count > 0 ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
+      appBar: widget.showAppBar
+          ? AppBar(
+              title: const Text('複数選択デモ'),
+              actions: [
+                // 選択件数バッジ
+                ListenableBuilder(
+                  listenable: _selectionController,
+                  builder: (context, _) {
+                    final count = _selectionController.selected.length;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Center(
+                        child: Text(
+                          count > 0 ? '$count 件選択中' : '未選択',
+                          style: TextStyle(
+                            color: count > 0
+                                ? Theme.of(context).colorScheme.primary
+                                : null,
+                            fontWeight:
+                                count > 0 ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
-          // 全選択解除ボタン
-          ListenableBuilder(
-            listenable: _selectionController,
-            builder: (context, _) {
-              return IconButton(
-                onPressed: _selectionController.selected.isNotEmpty
-                    ? () => _selectionController.clear()
-                    : null,
-                icon: const Icon(Icons.deselect),
-                tooltip: '選択解除',
-              );
-            },
-          ),
-        ],
-      ),
+                // 全選択解除ボタン
+                ListenableBuilder(
+                  listenable: _selectionController,
+                  builder: (context, _) {
+                    return IconButton(
+                      onPressed: _selectionController.selected.isNotEmpty
+                          ? () => _selectionController.clear()
+                          : null,
+                      icon: const Icon(Icons.deselect),
+                      tooltip: '選択解除',
+                    );
+                  },
+                ),
+              ],
+            )
+          : null,
       body: Column(
         children: [
           // 操作説明

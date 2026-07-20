@@ -10,6 +10,7 @@ enum ReorderableType {
   gridViewCount,
   gridViewExtent,
   gridViewBuilder,
+  multiSelection,
 }
 
 void main() {
@@ -24,7 +25,7 @@ void main() {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.dark,
-      home: const MultiSelectionExample(),
+      home: const MyApp(),
     ),
   );
 }
@@ -51,25 +52,19 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    // multiSelection は独自の Scaffold を持つため、ドロップダウンだけ上に表示
+    if (reorderableType == ReorderableType.multiSelection) {
+      return Scaffold(
+        appBar: AppBar(
+          title: _buildDropdown(),
+        ),
+        body: const MultiSelectionExample(showAppBar: false),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: DropdownButton<ReorderableType>(
-          value: reorderableType,
-          icon: const Icon(Icons.arrow_drop_down_rounded),
-          onChanged: (ReorderableType? reorderableType) {
-            setState(() {
-              _scrollController = ScrollController();
-              _gridViewKey = GlobalKey();
-              this.reorderableType = reorderableType!;
-            });
-          },
-          items: ReorderableType.values.map((e) {
-            return DropdownMenuItem<ReorderableType>(
-              value: e,
-              child: Text(e.toString()),
-            );
-          }).toList(),
-        ),
+        title: _buildDropdown(),
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -117,6 +112,26 @@ class _MyAppState extends State<MyApp> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDropdown() {
+    return DropdownButton<ReorderableType>(
+      value: reorderableType,
+      icon: const Icon(Icons.arrow_drop_down_rounded),
+      onChanged: (ReorderableType? reorderableType) {
+        setState(() {
+          _scrollController = ScrollController();
+          _gridViewKey = GlobalKey();
+          this.reorderableType = reorderableType!;
+        });
+      },
+      items: ReorderableType.values.map((e) {
+        return DropdownMenuItem<ReorderableType>(
+          value: e,
+          child: Text(e.toString()),
+        );
+      }).toList(),
     );
   }
 
@@ -228,6 +243,9 @@ class _MyAppState extends State<MyApp> {
             );
           },
         );
+
+      case ReorderableType.multiSelection:
+        return const MultiSelectionExample();
     }
   }
 
