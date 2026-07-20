@@ -3,6 +3,8 @@ import 'package:flutter_reorderable_grid_view_desktop/widgets/widgets.dart';
 
 /// 複数選択デモ
 ///
+/// - ドラッグ: ラバーバンド（矩形）選択（ページ全体から開始可能）
+/// - Ctrl/Cmd + ドラッグ: 追加ラバーバンド選択
 /// - Ctrl/Cmd + クリック: トグル選択
 /// - Shift + クリック: 範囲選択
 /// - Ctrl/Cmd + A: 全選択
@@ -22,12 +24,16 @@ class _MultiSelectionExampleState extends State<MultiSelectionExample> {
   final _scrollController = ScrollController();
   final _gridViewKey = GlobalKey();
 
+  // ページレベルのラバーバンド選択用Controller
+  final _rubberBandController = ReorderableRubberBandController();
+
   List<int> _items = List.generate(_itemCount, (index) => index);
 
   @override
   void dispose() {
     _selectionController.dispose();
     _scrollController.dispose();
+    _rubberBandController.dispose();
     super.dispose();
   }
 
@@ -82,57 +88,75 @@ class _MultiSelectionExampleState extends State<MultiSelectionExample> {
             padding: const EdgeInsets.all(12),
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: const Text(
-              'Ctrl/Cmd+クリック: トグル選択  |  Shift+クリック: 範囲選択  |  Ctrl/Cmd+A: 全選択  |  Escape: 全選択解除',
+              'ドラッグ: ラバーバンド選択（余白からも開始可）  |  Ctrl/Cmd+クリック: トグル選択  |  Shift+クリック: 範囲選択  |  Ctrl/Cmd+A: 全選択  |  Escape: 全選択解除',
               style: TextStyle(fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ),
-          // GridView
+          // GridView + ラバーバンドオーバーレイ（ページレベル）
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ReorderableBuilder<int>(
-                buildDefaultDragHandles: false,
-                // Controlled モード: 外部Controllerを渡す
-                selectionController: _selectionController,
-                // 選択デコレーション
-                selectedDecoration: BoxDecoration(
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.primary,
-                    width: 3,
-                  ),
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.15),
-                ),
-                // lockedIndicesは選択不可
-                lockedIndices: const [0],
-                onReorder: (reorderedListFunction) {
-                  setState(() {
-                    _items = reorderedListFunction(_items);
-                  });
-                  // ドロップ後も選択維持（デフォルト動作）
-                },
-                onSelectionChanged: (selectedKeys) {
-                  setState(() {});
-                },
-                scrollController: _scrollController,
-                children: _buildChildren(),
-                builder: (children) {
-                  return GridView(
-                    key: _gridViewKey,
-                    controller: _scrollController,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
+            child: Stack(
+              children: [
+                // コンテンツ（Padding 含む）
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ReorderableBuilder<int>(
+                    buildDefaultDragHandles: false,
+                    // Controlled モード: 外部Controllerを渡す
+                    selectionController: _selectionController,
+                    // ページレベルラバーバンド用Controller
+                    rubberBandController: _rubberBandController,
+                    // 選択デコレーション
+                    selectedDecoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 3,
+                      ),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.15),
                     ),
-                    children: children,
-                  );
-                },
-              ),
+                    // lockedIndicesは選択不可
+                    lockedIndices: const [0],
+                    onReorder: (reorderedListFunction) {
+                      setState(() {
+                        _items = reorderedListFunction(_items);
+                      });
+                    },
+                    onSelectionChanged: (selectedKeys) {
+                      setState(() {});
+                    },
+                    scrollController: _scrollController,
+                    children: _buildChildren(),
+                    builder: (children) {
+                      return GridView(
+                        key: _gridViewKey,
+                        controller: _scrollController,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                        ),
+                        children: children,
+                      );
+                    },
+                  ),
+                ),
+                // ラバーバンドオーバーレイ（Expanded 全体をカバー）
+                ReorderableRubberBand(
+                  selectionController: _selectionController,
+                  gridKey: _gridViewKey,
+                  getScrollOffset: () => _rubberBandController.scrollOffset,
+                  getChildrenKeyMap: () => _rubberBandController.childrenKeyMap,
+                  isDragging: _rubberBandController.isDragging,
+                  onSelectionChanged: (selectedKeys) {
+                    setState(() {});
+                  },
+                  lockedIndices: const [0],
+                ),
+              ],
             ),
           ),
           // 選択アイテム一覧
