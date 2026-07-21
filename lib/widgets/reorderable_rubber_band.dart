@@ -157,11 +157,17 @@ class ReorderableRubberBand extends StatefulWidget {
 }
 
 class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
-  /// ラバーバンドの開始位置（自身のローカル座標）。
-  Offset? _bandStartLocal;
+  /// ラバーバンドの開始位置（グローバル座標）。
+  ///
+  /// レイアウトシフト（選択ツールバーの出現等）が発生しても
+  /// 正確な位置を維持するためにグローバル座標で保持する。
+  Offset? _bandStartGlobal;
 
-  /// ラバーバンドの終了位置（自身のローカル座標）。
-  Offset? _bandEndLocal;
+  /// ラバーバンドの終了位置（グローバル座標）。
+  ///
+  /// ドラッグ中に毎フレーム更新される。グローバル座標で保持することで
+  /// レイアウトシフトの影響を受けない。
+  Offset? _bandEndGlobal;
 
   /// ラバーバンド開始前の選択状態（Ctrl/Cmd + ドラッグ時の追加選択用）。
   Set<Key> _selectionBeforeBand = {};
@@ -341,7 +347,7 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
             ),
           ),
           // ラバーバンド矩形描画
-          if (_bandStartLocal != null && _bandEndLocal != null)
+          if (_bandStartGlobal != null && _bandEndGlobal != null)
             _buildBandRect(),
         ],
       ),
@@ -375,8 +381,8 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
     _scrollOffsetAtBandStart = widget.getScrollOffset();
 
     setState(() {
-      _bandStartLocal = details.localPosition;
-      _bandEndLocal = details.localPosition;
+      _bandStartGlobal = details.globalPosition;
+      _bandEndGlobal = details.globalPosition;
     });
 
     // 自動スクロール開始
@@ -384,15 +390,17 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
   }
 
   void _handlePanUpdate(DragUpdateDetails details) {
-    if (_bandStartLocal == null) return;
+    if (_bandStartGlobal == null) return;
 
     setState(() {
-      _bandEndLocal = details.localPosition;
+      _bandEndGlobal = details.globalPosition;
     });
 
     // AutoScroller にドラッグ位置を通知（ビューポート座標系に変換）
     if (_isAutoScrollAvailable) {
-      final viewportPosition = _toViewportPosition(details.localPosition);
+      final viewportPosition = _toViewportPosition(
+        _globalToLocal(details.globalPosition),
+      );
       _autoScroller?.updateDragPosition(viewportPosition);
     }
 
@@ -413,8 +421,8 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
     _autoScroller?.stop();
 
     setState(() {
-      _bandStartLocal = null;
-      _bandEndLocal = null;
+      _bandStartGlobal = null;
+      _bandEndGlobal = null;
     });
     _selectionBeforeBand = {};
     _hitKeysDuringBand = {};
@@ -452,6 +460,16 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
     }
 
     return localPosition;
+  }
+
+  /// グローバル座標を自身のローカル座標に変換する。
+  ///
+  /// レイアウトシフト後も常に現在の RenderBox 位置を基準に変換するため、
+  /// 正確なローカル座標が得られる。
+  Offset _globalToLocal(Offset globalPosition) {
+    final myRenderBox = context.findRenderObject() as RenderBox?;
+    if (myRenderBox == null) return globalPosition;
+    return myRenderBox.globalToLocal(globalPosition);
   }
 
   /// GridView のビューポートサイズを取得する。
@@ -497,27 +515,57 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
     return localPosition + scrollOffset;
   }
 
-  /// 自身のローカル座標を指定されたスクロールオフセットでグリッドコンテンツ座標に変換する。
+  /// グローバル座標をグリッドコンテンツ座標に変換する。
   ///
-  /// [_localToGridContent] と同様だが、現在のスクロールオフセットではなく
-  /// 引数で指定した [scroll] を使用する。
-  /// ラバーバンド開始点のように「開始時のスクロール位置」で固定すべき場合に使う。
-  Offset _localToGridContentWithScroll(Offset localPosition, Offset scroll) {
+  /// [gridKey] が指定されている場合はグローバル → グリッドローカル変換を行い、
+  /// スクロールオフセットを加算する。
+  /// レイアウトシフトが発生しても、常に現在の RenderBox 位置を基準にするため正確。
+  Offset _globalToGridContent(Offset globalPosition) {
+    final scrollOffset = widget.getScrollOffset();
     final gridKey = widget.gridKey;
 
     if (gridKey != null) {
       final gridRenderBox =
           gridKey.currentContext?.findRenderObject() as RenderBox?;
-      final myRenderBox = context.findRenderObject() as RenderBox?;
 
-      if (gridRenderBox != null && myRenderBox != null) {
-        final globalPos = myRenderBox.localToGlobal(localPosition);
-        final gridLocal = gridRenderBox.globalToLocal(globalPos);
+      if (gridRenderBox != null) {
+        final gridLocal = gridRenderBox.globalToLocal(globalPosition);
+        return gridLocal + scrollOffset;
+      }
+    }
+
+    // gridKey が未指定の場合は自身のローカル座標にフォールバック
+    final myRenderBox = context.findRenderObject() as RenderBox?;
+    if (myRenderBox != null) {
+      return myRenderBox.globalToLocal(globalPosition) + scrollOffset;
+    }
+    return globalPosition + scrollOffset;
+  }
+
+  /// グローバル座標を指定されたスクロールオフセットでグリッドコンテンツ座標に変換する。
+  ///
+  /// [_globalToGridContent] と同様だが、現在のスクロールオフセットではなく
+  /// 引数で指定した [scroll] を使用する。
+  /// ラバーバンド開始点のように「開始時のスクロール位置」で固定すべき場合に使う。
+  Offset _globalToGridContentWithScroll(Offset globalPosition, Offset scroll) {
+    final gridKey = widget.gridKey;
+
+    if (gridKey != null) {
+      final gridRenderBox =
+          gridKey.currentContext?.findRenderObject() as RenderBox?;
+
+      if (gridRenderBox != null) {
+        final gridLocal = gridRenderBox.globalToLocal(globalPosition);
         return gridLocal + scroll;
       }
     }
 
-    return localPosition + scroll;
+    // gridKey が未指定の場合は自身のローカル座標にフォールバック
+    final myRenderBox = context.findRenderObject() as RenderBox?;
+    if (myRenderBox != null) {
+      return myRenderBox.globalToLocal(globalPosition) + scroll;
+    }
+    return globalPosition + scroll;
   }
 
   /// 現在のラバーバンド矩形内にあるアイテムを選択する。
@@ -530,18 +578,18 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
   /// 矩形外と判定される。これは「ユーザーがバンドを縮小した」のではなく
   /// 「スクロールで表示範囲が変わった」だけなので、選択を外すべきではない。
   void _updateSelection({required bool allowDeselect}) {
-    final startLocal = _bandStartLocal;
-    final endLocal = _bandEndLocal;
-    if (startLocal == null || endLocal == null) return;
+    final startGlobal = _bandStartGlobal;
+    final endGlobal = _bandEndGlobal;
+    if (startGlobal == null || endGlobal == null) return;
 
     // ラバーバンドのコンテンツ座標を計算。
     // 開始点は「開始時のスクロールオフセット」で変換する（コンテンツ上の固定位置）。
     // 終了点は「現在のスクロールオフセット」で変換する（現在のマウス位置）。
-    final startGrid = _localToGridContentWithScroll(
-      startLocal,
+    final startGrid = _globalToGridContentWithScroll(
+      startGlobal,
       _scrollOffsetAtBandStart,
     );
-    final endGrid = _localToGridContent(endLocal);
+    final endGrid = _globalToGridContent(endGlobal);
     final bandRect = Rect.fromPoints(startGrid, endGrid);
 
     final childrenKeyMap = widget.getChildrenKeyMap();
@@ -616,18 +664,27 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
     return hitKeys;
   }
 
-  /// ラバーバンドの視覚表現を構築する（自身のローカル座標で描画）。
+  /// ラバーバンドの視覚表現を構築する。
   ///
+  /// グローバル座標を描画時に自身のローカル座標に変換するため、
+  /// レイアウトシフトが発生しても正確にマウス位置に追従する。
   /// スクロールが発生した場合、開始点をスクロール差分だけ移動させることで
   /// ラバーバンドがコンテンツに追従する。
   Widget _buildBandRect() {
+    final myRenderBox = context.findRenderObject() as RenderBox?;
+    if (myRenderBox == null) return const SizedBox.shrink();
+
+    // グローバル座標を現在のローカル座標に変換
+    final startLocal = myRenderBox.globalToLocal(_bandStartGlobal!);
+    final endLocal = myRenderBox.globalToLocal(_bandEndGlobal!);
+
     // スクロール差分を計算（開始時からどれだけスクロールしたか）
     final currentScrollOffset = widget.getScrollOffset();
     final scrollDelta = currentScrollOffset - _scrollOffsetAtBandStart;
 
     // 開始点はスクロール差分だけ画面上の位置をずらす（コンテンツ追従）
-    final adjustedStart = _bandStartLocal! - scrollDelta;
-    final rect = Rect.fromPoints(adjustedStart, _bandEndLocal!);
+    final adjustedStart = startLocal - scrollDelta;
+    final rect = Rect.fromPoints(adjustedStart, endLocal);
 
     final decoration = widget.configuration.decoration ??
         BoxDecoration(
