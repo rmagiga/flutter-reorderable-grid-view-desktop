@@ -37,7 +37,10 @@ void main() {
         key: givenKey2,
         updatedOrderId: 1,
       );
-      final expectedChildrenOrderMap = {-1: expectedReorderableEntity2};
+      final expectedChildrenOrderMap = {
+        0: expectedReorderableEntity1,
+        1: expectedReorderableEntity2,
+      };
       expect(controller.childrenOrderMap, equals(expectedChildrenOrderMap));
       final expectedChildrenKeyMap = {
         givenKey1.value: expectedReorderableEntity1,
@@ -97,7 +100,10 @@ void main() {
         key: givenKey2,
         updatedOrderId: 1,
       );
-      final expectedChildrenOrderMap = {-1: expectedReorderableEntity2};
+      final expectedChildrenOrderMap = {
+        0: expectedReorderableEntity1,
+        1: expectedReorderableEntity2,
+      };
       expect(controller.childrenOrderMap, equals(expectedChildrenOrderMap));
       final expectedChildrenKeyMap = {
         givenKey1.value: expectedReorderableEntity1,

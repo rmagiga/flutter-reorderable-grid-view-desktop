@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_reorderable_grid_view_desktop/controller/auto_scroller.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_builder_controller.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_drag_and_drop_controller.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_item_builder_controller.dart';
@@ -396,6 +397,12 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   /// ドラッグ終了処理の多重割り込みを防ぐガードフラグ。
   bool _isFinishingDragging = false;
 
+  /// 共有の AutoScroller インスタンス。
+  ///
+  /// リオーダードラッグとラバーバンド選択の両方で使用する。
+  /// ScrollController が指定されている場合のみ有効。
+  late final AutoScroller _autoScroller;
+
   @override
   void initState() {
     super.initState();
@@ -403,6 +410,13 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
 
     reorderableBuilderController = ReorderableBuilderController();
     reorderableItemBuilderController = ReorderableItemBuilderController();
+
+    // AutoScroller の初期化（リオーダーとラバーバンドで共有）
+    _autoScroller = AutoScroller(
+      edgeThreshold: widget.automaticScrollExtent,
+      reverse: widget.reverse,
+    );
+    _autoScroller.attach(widget.scrollController);
 
     // SelectionControllerの初期化
     final externalController = widget.selectionController;
@@ -436,6 +450,14 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   @override
   void didUpdateWidget(covariant ReorderableBuilder<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    // ScrollController の差し替えに対応
+    if (widget.scrollController != oldWidget.scrollController) {
+      _autoScroller.updateController(widget.scrollController);
+    }
+
+    // AutoScroller のパラメータ更新
+    _autoScroller.reverse = widget.reverse;
 
     final children = widget.children;
     if (children == null || children == oldWidget.children) return;
@@ -472,6 +494,8 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     if (_isInternalSelectionController) {
       _selectionController.dispose();
     }
+    // AutoScroller の破棄
+    _autoScroller.detach();
     // RubberBandControllerのdetach
     widget.rubberBandController?.detach();
     WidgetsBinding.instance.removeObserver(this);
@@ -501,6 +525,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
       automaticScrollExtent: widget.automaticScrollExtent,
       enableScrollingWhileDragging: widget.enableScrollingWhileDragging,
       reverse: widget.reverse,
+      autoScroller: _autoScroller,
       onDragUpdate: _handleDragUpdate,
       child: child,
     );
@@ -525,6 +550,9 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
             onSelectionChanged: widget.onSelectionChanged,
             lockedIndices: widget.lockedIndices,
             disabledSelectionPredicate: widget.disabledSelectionPredicate,
+            scrollController: widget.scrollController,
+            autoScroller: _autoScroller,
+            autoScrollEdgeThreshold: widget.automaticScrollExtent,
           ),
         ],
       );

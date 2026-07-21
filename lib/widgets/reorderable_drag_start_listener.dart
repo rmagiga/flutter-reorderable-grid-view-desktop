@@ -24,10 +24,12 @@ class ReorderableGridDragStartListener extends StatefulWidget {
   });
 
   @override
-  State<ReorderableGridDragStartListener> createState() => _ReorderableGridDragStartListenerState();
+  State<ReorderableGridDragStartListener> createState() =>
+      _ReorderableGridDragStartListenerState();
 }
 
-class _ReorderableGridDragStartListenerState extends State<ReorderableGridDragStartListener> {
+class _ReorderableGridDragStartListenerState
+    extends State<ReorderableGridDragStartListener> {
   @override
   void initState() {
     super.initState();
@@ -67,7 +69,8 @@ class _ReorderableGridDragStartListenerState extends State<ReorderableGridDragSt
 /// [ReorderableGridDragStartListener] の長押し遅延版。
 ///
 /// 親の `enableLongPress` が有効な場合と同様の動作をします。
-class ReorderableGridDelayedDragStartListener extends ReorderableGridDragStartListener {
+class ReorderableGridDelayedDragStartListener
+    extends ReorderableGridDragStartListener {
   const ReorderableGridDelayedDragStartListener({
     required super.child,
     required super.index,

@@ -1,9 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_reorderable_grid_view_desktop/utils/reorderable_scrollable.dart';
+import 'package:flutter_reorderable_grid_view_desktop/controller/auto_scroller.dart';
 
-/// Uses [Listener] to indicate position updates while dragging a child and enables an autoscroll functionality.
+/// ドラッグ中のポインタ移動を検知し、自動スクロール機能を提供する。
+///
+/// [Listener] でポインタ移動を監視し、[AutoScroller] を利用して
+/// ビューポート端に近付いたときに自動スクロールを行う。
 class ReorderableScrollingListener extends StatefulWidget {
   /// [child] added to build method.
   final Widget child;
@@ -33,6 +34,12 @@ class ReorderableScrollingListener extends StatefulWidget {
   /// Should be the [ScrollController] of the [GridView].
   final ScrollController? scrollController;
 
+  /// 外部から注入する [AutoScroller]。
+  ///
+  /// 指定された場合はこのインスタンスを使用する。
+  /// null の場合は内部で生成する（後方互換性のため）。
+  final AutoScroller? autoScroller;
+
   const ReorderableScrollingListener({
     required this.child,
     required this.isDragging,
@@ -42,6 +49,7 @@ class ReorderableScrollingListener extends StatefulWidget {
     required this.onDragUpdate,
     required this.reorderableChildKey,
     required this.scrollController,
+    this.autoScroller,
     Key? key,
   }) : super(key: key);
 
@@ -52,34 +60,50 @@ class ReorderableScrollingListener extends StatefulWidget {
 
 class _ReorderableScrollingListenerState
     extends State<ReorderableScrollingListener> {
-  /// Repeating timer to ensure that autoscroll also works when the user doesn't the dragged child.
-  Timer? _scrollCheckTimer;
+  /// 内部で生成した AutoScroller（外部注入されなかった場合のみ使用）。
+  AutoScroller? _internalAutoScroller;
 
-  /// [Size] of the child that was found in [widget.reorderableChildKey].
-  Size? _childSize;
+  /// 使用する AutoScroller のインスタンス。
+  AutoScroller get _autoScroller {
+    if (widget.autoScroller != null) return widget.autoScroller!;
+    return _internalAutoScroller!;
+  }
 
-  /// [Offset] of the child that was found in [widget.reorderableChildKey].
-  Offset? _childOffset;
-
-  Offset? _lastDragPosition;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoScroller == null) {
+      // 内部生成の場合は attach
+      _internalAutoScroller = AutoScroller(
+        edgeThreshold: widget.automaticScrollExtent,
+        reverse: widget.reverse,
+      );
+      _internalAutoScroller!.attach(widget.scrollController);
+    }
+  }
 
   @override
   void didUpdateWidget(covariant ReorderableScrollingListener oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    // 内部 AutoScroller の場合のみ Controller 差し替えに対応
+    if (widget.autoScroller == null) {
+      if (widget.scrollController != oldWidget.scrollController) {
+        _internalAutoScroller?.updateController(widget.scrollController);
+      }
+      _internalAutoScroller?.reverse = widget.reverse;
+    }
+
     if (widget.isDragging != oldWidget.isDragging) {
-      if (widget.isDragging) {
-        _updateChildSizeAndOffset();
-      } else {
-        _scrollCheckTimer?.cancel();
-        _scrollCheckTimer = null;
-        _lastDragPosition = null;
+      if (!widget.isDragging) {
+        _autoScroller.stop();
       }
     }
   }
 
   @override
   void dispose() {
-    _scrollCheckTimer?.cancel();
+    _internalAutoScroller?.detach();
     super.dispose();
   }
 
@@ -97,139 +121,100 @@ class _ReorderableScrollingListenerState
     );
   }
 
-  /// Always called when the user moves the dragged child around.
-  ///
-  /// If there is a [widget.reorderableChildKey] and [widget.scrollController],
-  /// then the autoscroll is starting by creating a repeating timer that calls
-  /// himself every 10 ms to check if widget of [widget.reorderableChildKey]
-  /// can be scrolled up or down.
-  ///
-  /// The timer is now created once and kept alive while dragging, instead
-  /// of being cancelled and recreated on every pointer move. This prevents
-  /// timer starvation on high-refresh-rate devices where pointer events fire
-  /// faster than the 10ms timer interval.
-  void _handleDragUpdate(PointerMoveEvent details) {
-    final scrollDirection = _reorderableScrollable.scrollDirection;
+  /// ドラッグ開始時に AutoScroller を起動する。
+  void _startAutoScroll() {
+    if (!widget.enableScrollingWhileDragging) return;
+    if (widget.reorderableChildKey == null) return;
 
-    if (widget.enableScrollingWhileDragging &&
-        widget.reorderableChildKey != null &&
-        scrollDirection != null) {
-      _lastDragPosition = details.localPosition;
+    final viewportSize = _getViewportSize();
+    if (viewportSize == null) return;
 
-      if (_scrollCheckTimer == null || !_scrollCheckTimer!.isActive) {
-        _scrollCheckTimer = Timer.periodic(
-          const Duration(milliseconds: 10),
-          (timer) {
-            if (widget.isDragging) {
-              final position = _lastDragPosition;
-              if (position != null) {
-                _checkToScrollWhileDragging(
-                  dragPosition: position,
-                  scrollDirection: scrollDirection,
-                );
-              }
-            } else {
-              timer.cancel();
-            }
-          },
+    final scrollDirection = _getScrollDirection();
+    if (scrollDirection == null) return;
+
+    // ScrollController がない場合（outer scrollable パターン）は
+    // 親の Scrollable から ScrollPosition を取得して scrollFunction を設定
+    if (widget.scrollController == null) {
+      final scrollable = Scrollable.maybeOf(context);
+      if (scrollable == null) return;
+
+      _autoScroller.setScrollFunction((delta) {
+        final position = scrollable.position;
+        final next = (position.pixels + delta).clamp(
+          position.minScrollExtent,
+          position.maxScrollExtent,
         );
+        if (next != position.pixels) {
+          position.jumpTo(next);
+        }
+      });
+    }
+
+    _autoScroller.start(
+      viewportSize: viewportSize,
+      scrollDirection: scrollDirection,
+    );
+  }
+
+  /// ドラッグ中のポインタ移動ハンドラ。
+  void _handleDragUpdate(PointerMoveEvent details) {
+    if (widget.enableScrollingWhileDragging &&
+        widget.reorderableChildKey != null) {
+      // AutoScroller が未起動なら開始する（既存と同じタイミング）
+      if (!_autoScroller.isActive) {
+        _startAutoScroll();
       }
+
+      // ビューポート座標に変換してから AutoScroller に渡す
+      final viewportPosition = _toViewportPosition(details.localPosition);
+      _autoScroller.updateDragPosition(viewportPosition);
     }
 
     widget.onDragUpdate(details);
   }
 
-  /// Depending on [dragPosition] a scroll will be triggered.
-  ///
-  /// Scrolls if [dragPosition] is within the area which is allowed to start
-  /// the scroll.
-  void _checkToScrollWhileDragging({
-    required Offset dragPosition,
-    required Axis scrollDirection,
-  }) {
-    final childSize = _childSize;
-    final childOffset = _childOffset;
-
-    if (childSize == null || childOffset == null) return;
-
-    final absoluteDragPosition = dragPosition + childOffset;
-
-    final automaticScrollExtent = widget.automaticScrollExtent;
-
-    final minOffset = Offset(
-      automaticScrollExtent,
-      automaticScrollExtent,
-    );
-    final maxOffset = Offset(
-      childSize.width - automaticScrollExtent,
-      childSize.height - automaticScrollExtent,
-    );
-
-    if (scrollDirection == Axis.vertical) {
-      if (absoluteDragPosition.dy < minOffset.dy) {
-        _scrollTo(scrollToTop: true);
-      } else if (absoluteDragPosition.dy > maxOffset.dy) {
-        _scrollTo(scrollToTop: false);
-      }
-    } else {
-      if (absoluteDragPosition.dx < minOffset.dx) {
-        _scrollTo(scrollToTop: true);
-      } else if (absoluteDragPosition.dx > maxOffset.dx) {
-        _scrollTo(scrollToTop: false);
-      }
-    }
+  /// ポインタ位置をビューポート座標系に変換する。
+  Offset _toViewportPosition(Offset localPosition) {
+    final childOffset = _getChildOffset();
+    return localPosition + childOffset;
   }
 
-  /// Scrolling vertical or horizontal using [widget.scrollController].
-  ///
-  /// [scrollToTop] scrolls into the current scroll direction to the right
-  /// or top, otherwise it goes to left or bottom.
-  /// If [widget.reverse] is true, then the scrolling direction is reversed.
-  void _scrollTo({required bool scrollToTop}) {
-    if (widget.reverse) {
-      scrollToTop = !scrollToTop;
+  /// GridView ビューポートのサイズを取得する。
+  Size? _getViewportSize() {
+    final currentContext = widget.reorderableChildKey?.currentContext;
+    final renderBox = currentContext?.findRenderObject() as RenderBox?;
+
+    if (renderBox == null) return null;
+
+    // GridView が unbounded（親がスクロール可能）の場合
+    if (renderBox.constraints.biggest.isInfinite) {
+      final dimension = Scrollable.of(context).position.viewportDimension;
+      return Size(dimension, dimension);
     }
 
-    final scrollOffset = _reorderableScrollable.pixels;
-    final maxScrollExtent = _reorderableScrollable.maxScrollExtent;
+    return renderBox.size;
+  }
 
-    if (scrollOffset != null && maxScrollExtent != null) {
-      final value = scrollToTop ? scrollOffset - 10 : scrollOffset + 10;
+  /// GridView のオフセットを取得する。
+  Offset _getChildOffset() {
+    final currentContext = widget.reorderableChildKey?.currentContext;
+    final renderBox = currentContext?.findRenderObject() as RenderBox?;
 
-      // only scroll in the viewport of scrollable widget
-      if (value > 0 && value < maxScrollExtent + 10) {
-        _reorderableScrollable.jumpTo(value: value);
-      }
+    if (renderBox == null) return Offset.zero;
+
+    if (renderBox.constraints.biggest.isInfinite) {
+      return renderBox.localToGlobal(Offset.zero);
     }
+
+    return Offset.zero;
   }
 
-  /// Updates [_childOffset] and [_childSize] using the values defined in [widget.reorderableChildKey].
-  ///
-  /// There are two ways when scrolling. It is possible that the [GridView] is scrollable
-  /// or a parent widget.
-  /// Depending on the scrollable widget, the size and position of the [GridView]
-  /// will be calculated.
-  void _updateChildSizeAndOffset() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final currentContext = widget.reorderableChildKey?.currentContext;
-      final renderBox = currentContext?.findRenderObject() as RenderBox?;
-
-      if (renderBox != null) {
-        // scroll is outside widget
-        if (renderBox.constraints.biggest.isInfinite) {
-          final dimension = Scrollable.of(context).position.viewportDimension;
-          _childSize = Size(dimension, dimension);
-          _childOffset = renderBox.localToGlobal(Offset.zero);
-        } else {
-          _childSize = renderBox.size;
-          _childOffset = Offset.zero;
-        }
-      }
-    });
+  /// スクロール方向を取得する。
+  Axis? _getScrollDirection() {
+    final controller = widget.scrollController;
+    if (controller != null && controller.hasClients) {
+      return controller.position.axis;
+    }
+    return Scrollable.maybeOf(context)?.position.axis;
   }
-
-  ReorderableScrollable get _reorderableScrollable => ReorderableScrollable.of(
-        context,
-        scrollController: widget.scrollController,
-      );
 }

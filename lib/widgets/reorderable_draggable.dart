@@ -183,7 +183,8 @@ class ReorderableDraggableState extends State<ReorderableDraggable>
 
     final currentDraggedEntity = widget.currentDraggedEntity;
     final updatedOrderId = reorderableEntity.updatedOrderId;
-    final visible = (currentDraggedEntity?.updatedOrderId != updatedOrderId) && !widget.isGhost;
+    final visible = (currentDraggedEntity?.updatedOrderId != updatedOrderId) &&
+        !widget.isGhost;
 
     final data = _getData();
 
@@ -303,7 +304,9 @@ class ReorderableDraggableProvider extends InheritedWidget {
   });
 
   static ReorderableDraggableState? of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<ReorderableDraggableProvider>()?.state;
+    return context
+        .dependOnInheritedWidgetOfExactType<ReorderableDraggableProvider>()
+        ?.state;
   }
 
   @override
@@ -336,7 +339,8 @@ class _CustomDraggable extends Draggable {
   }
 }
 
-class _CustomImmediateMultiDragGestureRecognizer extends ImmediateMultiDragGestureRecognizer {
+class _CustomImmediateMultiDragGestureRecognizer
+    extends ImmediateMultiDragGestureRecognizer {
   final bool Function(Offset position) shouldStartDrag;
 
   _CustomImmediateMultiDragGestureRecognizer({

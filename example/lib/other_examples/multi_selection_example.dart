@@ -152,6 +152,7 @@ class _MultiSelectionExampleState extends State<MultiSelectionExample> {
                 ReorderableRubberBand(
                   selectionController: _selectionController,
                   gridKey: _gridViewKey,
+                  scrollController: _scrollController,
                   getScrollOffset: () => _rubberBandController.scrollOffset,
                   getChildrenKeyMap: () => _rubberBandController.childrenKeyMap,
                   isDragging: _rubberBandController.isDragging,

@@ -282,6 +282,7 @@ Stack(
     // ラバーバンドオーバーレイ（Stack 全体をカバー）
     ReorderableRubberBand(
       selectionController: _selectionController,
+      scrollController: _scrollController,
       gridKey: _gridKey,
       getScrollOffset: () => _rubberBandController.scrollOffset,
       getChildrenKeyMap: () => _rubberBandController.childrenKeyMap,
@@ -322,6 +323,9 @@ Stack(
 | `lockedIndices`                | ラバーバンドで選択不可のアイテムインデックス。                                                            |   いいえ   |
 | `disabledSelectionPredicate`   | 特定インデックスのアイテムのラバーバンド選択を無効にする述語。                                             |   いいえ   |
 | `gridKey`                      | グリッドウィジェットの `GlobalKey`。ページレベルモードでの座標変換に必要。                                 |   いいえ   |
+| `scrollController`             | GridView の `ScrollController`。指定すると、ラバーバンドドラッグ中にビューポート端付近で自動スクロールが有効になる。 |   いいえ   |
+| `autoScroller`                 | 外部から注入する `AutoScroller` インスタンス（例: `ReorderableBuilder` と共有）。null の場合は内部で生成。   |   いいえ   |
+| `autoScrollEdgeThreshold`      | 自動スクロールが開始されるビューポート端からの距離。デフォルト: `80.0`。                                     |   いいえ   |
 
 #### `RubberBandConfiguration`
 

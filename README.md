@@ -284,6 +284,7 @@ Stack(
     // Rubber band overlay (covers the entire Stack area)
     ReorderableRubberBand(
       selectionController: _selectionController,
+      scrollController: _scrollController,
       gridKey: _gridKey,
       getScrollOffset: () => _rubberBandController.scrollOffset,
       getChildrenKeyMap: () => _rubberBandController.childrenKeyMap,
@@ -324,6 +325,9 @@ When `rubberBandController` is provided to `ReorderableBuilder`, the inline rubb
 | `lockedIndices`                | Indices of items that cannot be selected via rubber band.                                               |      No      |
 | `disabledSelectionPredicate`   | Predicate to disable rubber band selection for specific items by index.                                 |      No      |
 | `gridKey`                      | `GlobalKey` of the grid widget. Required for page-level mode to convert coordinates.                   |      No      |
+| `scrollController`             | `ScrollController` of the grid. Enables auto-scrolling while dragging near viewport edges.             |      No      |
+| `autoScroller`                 | External `AutoScroller` instance (e.g., shared with `ReorderableBuilder`). If null, one is created internally. |      No      |
+| `autoScrollEdgeThreshold`      | Distance from viewport edge at which auto-scroll activates. Default: `80.0`.                           |      No      |
 
 #### `RubberBandConfiguration`
 
