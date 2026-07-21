@@ -20,10 +20,12 @@ Package for having animated Drag and Drop functionality for every type of `GridV
   - [Scroll while dragging](#scroll-while-dragging)
   - [Animations](#animations)
   - [Multi-Selection](#multi-selection)
+  - [Rubber Band Selection](#rubber-band-selection)
   - [Drag Handle](#drag-handle)
 - [Supported Widgets](#supported-widgets)
 - [Parameters](#parameters)
   - [AnimationConfig Parameters](#animationconfig-parameters)
+  - [ReorderableRubberBandController](#reorderablerubberbandcontroller)
   - [ReorderableSelectionController](#reorderableselectioncontroller)
 - [Road Map](#road-map)
 - [Future Plans](#future-plans)
@@ -38,6 +40,7 @@ Enhance your Flutter app with this package to:
   - For GridView.builder, use ReorderableBuilder.builder to implement drag-and-drop.
 - Add smooth animations for adding, removing, or updating items in your grid.
 - **Multi-selection with drag and drop**: Select multiple items and reorder them together.
+- **Rubber band (marquee) selection**: Draw a rectangle to select multiple items at once (desktop).
 - **Drag handle support**: Use a dedicated drag handle widget to initiate dragging.
 
 ## Getting started
@@ -215,6 +218,120 @@ print(_selectionController.selected); // current selection set
 
 *For more details, check out the example in `multi_selection_example.dart`.*
 
+### Rubber Band Selection
+
+Rubber band (marquee) selection lets users draw a rectangle by dragging to select multiple items at once. This is standard behavior on desktop file managers and is enabled only on desktop platforms by default.
+
+There are two modes:
+
+#### Inline Mode (within ReorderableBuilder)
+
+The simplest option. The rubber band covers the area of the `ReorderableBuilder` widget. Set `enableRubberBandSelection: true` (requires `enableMultiSelection: true` or a `selectionController`):
+
+```dart
+ReorderableBuilder(
+  enableMultiSelection: true,
+  enableRubberBandSelection: true,
+  // Optional: customize the rectangle appearance
+  rubberBandConfiguration: RubberBandConfiguration(
+    decoration: BoxDecoration(
+      color: Colors.blue.withOpacity(0.1),
+      border: Border.all(color: Colors.blue, width: 1),
+    ),
+    desktopOnly: true, // disabled on mobile (default)
+  ),
+  onReorder: (reorderedListFunction) { /* ... */ },
+  builder: (children) => GridView(/* ... */),
+)
+```
+
+Note: In this mode, the rubber band can only start from within the grid area. If you need the rubber band to start from surrounding padding or empty space, use the page-level mode below.
+
+#### Page-Level Mode (recommended for desktop apps)
+
+Place the `ReorderableRubberBand` widget at a higher level in the widget tree (e.g., in a `Stack`) so that dragging can start from outside the grid (padding, margins, etc.). This matches the behavior of native desktop file managers.
+
+Use `ReorderableRubberBandController` to expose grid item information to the external rubber band widget, and pass a `GlobalKey` to link the coordinate systems:
+
+```dart
+final _selectionController = ReorderableSelectionController();
+final _rubberBandController = ReorderableRubberBandController();
+final _gridKey = GlobalKey();
+final _scrollController = ScrollController();
+
+// In your build method:
+Stack(
+  children: [
+    // Grid content (with padding — rubber band can start from here too)
+    Padding(
+      padding: const EdgeInsets.all(16),
+      child: ReorderableBuilder(
+        selectionController: _selectionController,
+        rubberBandController: _rubberBandController,
+        scrollController: _scrollController,
+        onReorder: (reorderedListFunction) { /* ... */ },
+        children: children,
+        builder: (children) => GridView(
+          key: _gridKey,
+          controller: _scrollController,
+          children: children,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+          ),
+        ),
+      ),
+    ),
+    // Rubber band overlay (covers the entire Stack area)
+    ReorderableRubberBand(
+      selectionController: _selectionController,
+      gridKey: _gridKey,
+      getScrollOffset: () => _rubberBandController.scrollOffset,
+      getChildrenKeyMap: () => _rubberBandController.childrenKeyMap,
+      isDragging: _rubberBandController.isDragging,
+      onSelectionChanged: (selectedKeys) {
+        // Update your UI state here
+      },
+      // Optional: pass locked indices / predicate to prevent selecting certain items
+      lockedIndices: const [0],
+    ),
+  ],
+)
+```
+
+When `rubberBandController` is provided to `ReorderableBuilder`, the inline rubber band rendering is automatically skipped — the external `ReorderableRubberBand` takes full responsibility for drawing and hit-testing.
+
+**Keyboard modifiers during rubber band:**
+- **Drag**: Replace selection with items in the rectangle
+- **Ctrl/Cmd + Drag**: Add items in the rectangle to existing selection
+
+**Important notes:**
+- The rubber band respects `lockedIndices` and `disabledSelectionPredicate` — those items cannot be selected via rubber band.
+- During a reorder drag (`isDragging: true`), the rubber band is automatically disabled to avoid conflicts.
+- On mobile platforms (`desktopOnly: true` by default), the rubber band is disabled.
+
+*For more details, check out the example in `multi_selection_example.dart`.*
+
+#### `ReorderableRubberBand` Parameters
+
+| **Parameter**                  | **Description**                                                                                         | **Required** |
+|:-------------------------------|:--------------------------------------------------------------------------------------------------------|:------------:|
+| `selectionController`          | The `ReorderableSelectionController` managing the selection state.                                      |     Yes      |
+| `getScrollOffset`              | Callback returning the current scroll offset of the grid.                                               |     Yes      |
+| `getChildrenKeyMap`            | Callback returning the map of item keys to their `ReorderableEntity` (position and size).              |     Yes      |
+| `configuration`                | `RubberBandConfiguration` for appearance and behavior. Defaults to a semi-transparent blue rectangle.  |      No      |
+| `isDragging`                   | Whether a reorder drag is in progress. When `true`, the rubber band is disabled.                       |      No      |
+| `onSelectionChanged`           | Callback called when the rubber band selection changes.                                                 |      No      |
+| `lockedIndices`                | Indices of items that cannot be selected via rubber band.                                               |      No      |
+| `disabledSelectionPredicate`   | Predicate to disable rubber band selection for specific items by index.                                 |      No      |
+| `gridKey`                      | `GlobalKey` of the grid widget. Required for page-level mode to convert coordinates.                   |      No      |
+
+#### `RubberBandConfiguration`
+
+| **Parameter**  | **Description**                                                                                              | **Default** |
+|:---------------|:-------------------------------------------------------------------------------------------------------------|:-----------:|
+| `decoration`   | `BoxDecoration` for the rubber band rectangle. If null, a default semi-transparent blue rectangle is used.  |    null     |
+| `desktopOnly`  | If true, rubber band is disabled on mobile platforms (Android/iOS).                                          |    true     |
+
 ### Drag Handle
 
 By default, dragging can be initiated from anywhere on an item. You can restrict drag initiation to a specific handle widget by setting `buildDefaultDragHandles: false` and wrapping the handle with `ReorderableGridDragStartListener`.
@@ -284,6 +401,9 @@ ReorderableBuilder(
 | `enableSelectAll`              | Enables Ctrl/Cmd + A to select all items. Only effective when `enableMultiSelection` is true.                           |     **true**      |
 | `disabledSelectionPredicate`   | Predicate to disable selection for specific items by index. Items in `lockedIndices` are also automatically disabled.   |       **-**       |
 | `buildDefaultDragHandles`      | Whether to allow dragging from anywhere on an item. Set to false to use `ReorderableGridDragStartListener` instead.     |     **true**      |
+| `enableRubberBandSelection`    | Enables rubber band (marquee) selection. Only effective when multi-selection is enabled.                                 |     **false**     |
+| `rubberBandConfiguration`      | Configuration for the rubber band appearance and behavior. Used when `enableRubberBandSelection` is true.              |       **-**       |
+| `rubberBandController`         | Controller to expose grid item info for page-level rubber band. When provided, inline rubber band rendering is skipped.|       **-**       |
 
 ### AnimationConfig Parameters
 
@@ -319,6 +439,18 @@ Ensure this widget wraps the child you intend to add to your `GridView`, as it s
     child: Placeholder(),
   ),
 ```
+
+### `ReorderableRubberBandController`
+
+`ReorderableRubberBandController` exposes the internal grid item information (positions, sizes, scroll offset) to an externally placed `ReorderableRubberBand` widget.
+
+Pass it to `ReorderableBuilder`'s `rubberBandController` parameter. The controller is automatically attached on init and detached on dispose.
+
+| **Property**       | **Description**                                                                        |
+|:-------------------|:---------------------------------------------------------------------------------------|
+| `childrenKeyMap`   | Map of all items' `ValueKey.value` to their `ReorderableEntity` (position and size).   |
+| `scrollOffset`     | Current scroll offset of the grid.                                                     |
+| `isDragging`       | Whether a reorder drag is currently in progress.                                       |
 
 ### `ReorderableSelectionController`
 

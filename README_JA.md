@@ -20,10 +20,12 @@
   - [ドラッグ中のスクロール](#ドラッグ中のスクロール)
   - [アニメーション](#アニメーション)
   - [複数選択](#複数選択)
+  - [ラバーバンド選択](#ラバーバンド選択)
   - [ドラッグハンドル](#ドラッグハンドル)
 - [サポートされているウィジェット](#サポートされているウィジェット)
 - [パラメータ](#パラメータ)
   - [AnimationConfig パラメータ](#animationconfig-パラメータ)
+  - [ReorderableRubberBandController](#reorderablerubberbandcontroller)
   - [ReorderableSelectionController](#reorderableselectioncontroller)
 - [ロードマップ](#ロードマップ)
 - [今後の計画](#今後の計画)
@@ -38,6 +40,7 @@
   - `GridView.builder` の場合、ドラッグ＆ドロップの実装には `ReorderableBuilder.builder` を使用します。
 - グリッド内のアイテムの追加、削除、更新時にスムーズなアニメーションを追加します。
 - **複数選択＆ドラッグ＆ドロップ**：複数のアイテムを選択してまとめて並べ替えられます。
+- **ラバーバンド（マーキー）選択**：矩形をドラッグして複数アイテムを一括選択できます（デスクトップ）。
 - **ドラッグハンドル対応**：専用のハンドルウィジェットからのみドラッグを開始できます。
 
 ## はじめに
@@ -213,6 +216,120 @@ print(_selectionController.selected); // 現在の選択セット
 
 *詳細については、`multi_selection_example.dart` の例を確認してください。*
 
+### ラバーバンド選択
+
+ラバーバンド（マーキー）選択は、矩形をドラッグして描画することで複数のアイテムを一括選択する機能です。デスクトップのファイルマネージャーにおける標準的な操作であり、デフォルトではデスクトップ環境でのみ有効化されます。
+
+2つのモードがあります：
+
+#### インラインモード（ReorderableBuilder 内部）
+
+最もシンプルな方法です。ラバーバンドは `ReorderableBuilder` ウィジェットの領域内で動作します。`enableRubberBandSelection: true` を設定します（`enableMultiSelection: true` または `selectionController` の指定が必要）：
+
+```dart
+ReorderableBuilder(
+  enableMultiSelection: true,
+  enableRubberBandSelection: true,
+  // オプション: 矩形の外観をカスタマイズ
+  rubberBandConfiguration: RubberBandConfiguration(
+    decoration: BoxDecoration(
+      color: Colors.blue.withOpacity(0.1),
+      border: Border.all(color: Colors.blue, width: 1),
+    ),
+    desktopOnly: true, // モバイルでは無効（デフォルト）
+  ),
+  onReorder: (reorderedListFunction) { /* ... */ },
+  builder: (children) => GridView(/* ... */),
+)
+```
+
+注意: このモードでは、ラバーバンドはグリッド領域内からのみ開始できます。周囲の余白や空白エリアからもラバーバンドを開始したい場合は、以下のページレベルモードを使用してください。
+
+#### ページレベルモード（デスクトップアプリ推奨）
+
+`ReorderableRubberBand` ウィジェットをウィジェットツリーのより上位（例: `Stack` 内）に配置することで、グリッド外部（パディング・マージン等）からもドラッグを開始できます。ネイティブのデスクトップファイルマネージャーと同様の動作になります。
+
+`ReorderableRubberBandController` を使ってグリッドのアイテム情報を外部のラバーバンドウィジェットに公開し、`GlobalKey` で座標系を連携させます：
+
+```dart
+final _selectionController = ReorderableSelectionController();
+final _rubberBandController = ReorderableRubberBandController();
+final _gridKey = GlobalKey();
+final _scrollController = ScrollController();
+
+// build メソッド内:
+Stack(
+  children: [
+    // グリッドコンテンツ（パディング付き — ここからもラバーバンド開始可能）
+    Padding(
+      padding: const EdgeInsets.all(16),
+      child: ReorderableBuilder(
+        selectionController: _selectionController,
+        rubberBandController: _rubberBandController,
+        scrollController: _scrollController,
+        onReorder: (reorderedListFunction) { /* ... */ },
+        children: children,
+        builder: (children) => GridView(
+          key: _gridKey,
+          controller: _scrollController,
+          children: children,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+          ),
+        ),
+      ),
+    ),
+    // ラバーバンドオーバーレイ（Stack 全体をカバー）
+    ReorderableRubberBand(
+      selectionController: _selectionController,
+      gridKey: _gridKey,
+      getScrollOffset: () => _rubberBandController.scrollOffset,
+      getChildrenKeyMap: () => _rubberBandController.childrenKeyMap,
+      isDragging: _rubberBandController.isDragging,
+      onSelectionChanged: (selectedKeys) {
+        // UI 状態を更新
+      },
+      // オプション: 特定アイテムの選択を防止
+      lockedIndices: const [0],
+    ),
+  ],
+)
+```
+
+`rubberBandController` を `ReorderableBuilder` に渡すと、内部でのラバーバンドオーバーレイ描画は自動的にスキップされ、外部の `ReorderableRubberBand` が描画とヒットテストの全責任を担います。
+
+**ラバーバンド中のキーボード修飾キー：**
+- **ドラッグ**: 矩形内のアイテムで選択を置き換え
+- **Ctrl/Cmd + ドラッグ**: 矩形内のアイテムを既存の選択に追加
+
+**重要な注意点：**
+- ラバーバンドは `lockedIndices` と `disabledSelectionPredicate` を尊重します — それらのアイテムはラバーバンドでは選択できません。
+- リオーダードラッグ中（`isDragging: true`）は、衝突を避けるためラバーバンドは自動的に無効化されます。
+- モバイルプラットフォームでは（`desktopOnly: true` がデフォルト）、ラバーバンドは無効です。
+
+*詳細については、`multi_selection_example.dart` の例を確認してください。*
+
+#### `ReorderableRubberBand` パラメータ
+
+| **パラメータ**                  | **説明**                                                                                                | **必須** |
+|:-------------------------------|:--------------------------------------------------------------------------------------------------------|:--------:|
+| `selectionController`          | 選択状態を管理する `ReorderableSelectionController`。                                                    |    はい    |
+| `getScrollOffset`              | グリッドの現在のスクロールオフセットを返すコールバック。                                                   |    はい    |
+| `getChildrenKeyMap`            | アイテムキーから `ReorderableEntity`（位置・サイズ）へのマップを返すコールバック。                          |    はい    |
+| `configuration`                | ラバーバンドの外観と動作設定。デフォルトは半透明の青い矩形。                                              |   いいえ   |
+| `isDragging`                   | リオーダードラッグ中かどうか。`true` の場合、ラバーバンドは無効。                                         |   いいえ   |
+| `onSelectionChanged`           | ラバーバンドによる選択が変化したときのコールバック。                                                       |   いいえ   |
+| `lockedIndices`                | ラバーバンドで選択不可のアイテムインデックス。                                                            |   いいえ   |
+| `disabledSelectionPredicate`   | 特定インデックスのアイテムのラバーバンド選択を無効にする述語。                                             |   いいえ   |
+| `gridKey`                      | グリッドウィジェットの `GlobalKey`。ページレベルモードでの座標変換に必要。                                 |   いいえ   |
+
+#### `RubberBandConfiguration`
+
+| **パラメータ**  | **説明**                                                                                                         | **デフォルト** |
+|:---------------|:-----------------------------------------------------------------------------------------------------------------|:--------------:|
+| `decoration`   | ラバーバンド矩形の `BoxDecoration`。null の場合はデフォルトの半透明青矩形が使用される。                            |    null        |
+| `desktopOnly`  | true の場合、モバイル環境（Android / iOS）ではラバーバンドが無効化される。                                        |    true        |
+
 ### ドラッグハンドル
 
 デフォルトでは、アイテムのどこからでもドラッグを開始できます。`buildDefaultDragHandles: false` を設定し、ハンドルとなるウィジェットを `ReorderableGridDragStartListener` でラップすることで、そのハンドル部分からのみドラッグを開始できるようになります。
@@ -282,6 +399,9 @@ ReorderableBuilder(
 | `enableSelectAll`              | Ctrl/Cmd + A による全選択を有効にします。`enableMultiSelection` が `true` の場合のみ有効です。                              |     **true**      |
 | `disabledSelectionPredicate`   | 特定のインデックスのアイテムを選択不可にする述語。`lockedIndices` のアイテムも自動的に選択不可になります。                      |       **-**       |
 | `buildDefaultDragHandles`      | アイテムのどこからでもドラッグを開始できるかどうか。`false` にすると `ReorderableGridDragStartListener` のみで開始できます。  |     **true**      |
+| `enableRubberBandSelection`    | ラバーバンド（矩形ドラッグ）選択を有効にする。複数選択が有効な場合のみ機能。                                                |     **false**     |
+| `rubberBandConfiguration`      | ラバーバンドの外観・動作設定。`enableRubberBandSelection` が `true` の場合に使用。                                          |       **-**       |
+| `rubberBandController`         | ページレベルのラバーバンド用Controller。指定すると内部のラバーバンド描画はスキップされる。                                   |       **-**       |
 
 ### AnimationConfig パラメータ
 
@@ -317,6 +437,18 @@ ReorderableBuilder(
     child: Placeholder(),
   ),
 ```
+
+### `ReorderableRubberBandController`
+
+`ReorderableRubberBandController` は、`ReorderableBuilder` 内部のアイテム情報（位置・サイズ・スクロールオフセット）を外部に配置した `ReorderableRubberBand` ウィジェットに公開するコントローラーです。
+
+`ReorderableBuilder` の `rubberBandController` パラメータに渡してください。コントローラーは初期化時に自動的に attach され、破棄時に detach されます。
+
+| **プロパティ**       | **説明**                                                                          |
+|:-------------------|:----------------------------------------------------------------------------------|
+| `childrenKeyMap`   | 全アイテムの `ValueKey.value` から `ReorderableEntity`（位置・サイズ）へのマップ。   |
+| `scrollOffset`     | グリッドの現在のスクロールオフセット。                                              |
+| `isDragging`       | リオーダードラッグが進行中かどうか。                                               |
 
 ### `ReorderableSelectionController`
 
