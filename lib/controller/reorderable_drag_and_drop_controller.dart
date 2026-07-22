@@ -139,7 +139,8 @@ class ReorderableDragAndDropController extends ReorderableController {
     final isMultiSelection = selectedKeys.contains(draggedKey);
 
     if (isMultiSelection) {
-      final orderUpdateEntities = _handleMultiSelectionDragEnd(draggedKey, oldIndex, newIndex);
+      final orderUpdateEntities =
+          _handleMultiSelectionDragEnd(draggedKey, oldIndex, newIndex);
       super.draggedEntity = null;
       updateToActualPositions();
       return orderUpdateEntities;
@@ -175,9 +176,8 @@ class ReorderableDragAndDropController extends ReorderableController {
 
     // 選択アイテムはドラッグ開始前の順序（_keysAtDragStart）で並べる
     // currentKeys はドラッグ中のスワップで順序が変わっているため使用しない
-    final sortedSelectedKeys = _keysAtDragStart
-        .where((key) => selectedKeys.contains(key))
-        .toList();
+    final sortedSelectedKeys =
+        _keysAtDragStart.where((key) => selectedKeys.contains(key)).toList();
     if (sortedSelectedKeys.isEmpty) {
       return null;
     }
@@ -276,10 +276,8 @@ class ReorderableDragAndDropController extends ReorderableController {
 
     // newKeys に含まれなかったアイテムがあれば末尾に追加（安全策）
     if (updatedItems.length < items.length) {
-      final usedIndices = newKeys
-          .map((k) => keyToItemIndex[k])
-          .whereType<int>()
-          .toSet();
+      final usedIndices =
+          newKeys.map((k) => keyToItemIndex[k]).whereType<int>().toSet();
       for (int i = 0; i < items.length; i++) {
         if (!usedIndices.contains(i)) {
           updatedItems.add(items[i]);
@@ -380,27 +378,50 @@ class ReorderableDragAndDropController extends ReorderableController {
   }
 
   /// Checking if the dragged child collision with another child in [_childrenMap].
+  ///
+  /// ドラッグ位置に重なるアイテムを探索する。
+  /// 近傍チェックを優先し、見つからない場合のみ遠方も確認する。
   ReorderableEntity? _getCollisionReorderableEntity({
     required dynamic keyValue,
     required Offset draggedOffset,
   }) {
+    // 現在ドラッグ中のアイテムの updatedOrderId を基点として近傍を優先的に探索する。
+    // ドラッグ中のスワップは隣接アイテムとの衝突が大半であるため、
+    // 近傍チェックで大部分のケースをカバーできる。
+    final draggedOrderId = draggedEntity?.updatedOrderId;
+    ReorderableEntity? fallbackResult;
+
     for (final entry in childrenKeyMap.entries) {
-      final localPosition = entry.value.updatedOffset;
-      final size = entry.value.size;
+      if (entry.key == keyValue) continue;
 
-      if (entry.key == keyValue) {
-        continue;
-      }
+      final entity = entry.value;
+      if (!_isColliding(draggedOffset, entity)) continue;
 
-      // checking collision with full item size and local position
-      if (draggedOffset.dx >= localPosition.dx &&
-          draggedOffset.dy >= localPosition.dy &&
-          draggedOffset.dx <= localPosition.dx + size.width &&
-          draggedOffset.dy <= localPosition.dy + size.height) {
-        return entry.value;
+      // 衝突を検出。近傍なら即座に返す。
+      if (draggedOrderId != null) {
+        final diff = (entity.updatedOrderId - draggedOrderId).abs();
+        if (diff <= 5) {
+          return entity;
+        }
+        // 遠方の衝突は記録して続行（近傍が見つかればそちらを優先）
+        fallbackResult ??= entity;
+      } else {
+        return entity;
       }
     }
-    return null;
+
+    return fallbackResult;
+  }
+
+  /// ドラッグ位置がエンティティの領域内にあるかを判定する。
+  bool _isColliding(Offset draggedOffset, ReorderableEntity entity) {
+    final localPosition = entity.updatedOffset;
+    final size = entity.size;
+
+    return draggedOffset.dx >= localPosition.dx &&
+        draggedOffset.dy >= localPosition.dy &&
+        draggedOffset.dx <= localPosition.dx + size.width &&
+        draggedOffset.dy <= localPosition.dy + size.height;
   }
 
   /// Returns a list of all updated positions containing old and new index.

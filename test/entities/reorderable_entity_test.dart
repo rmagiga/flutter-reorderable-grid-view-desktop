@@ -149,11 +149,22 @@ void main() {
         hasSwappedOrder: givenHasSwappedOrder,
       );
 
+      const sameEntity = ReorderableEntity(
+        key: givenKey,
+        originalOrderId: givenOriginalOrderId,
+        updatedOrderId: givenUpdatedOrderId,
+        originalOffset: givenOriginalOffset,
+        updatedOffset: givenUpdatedOffset,
+        size: givenSize,
+        isBuildingOffset: givenIsBuildingOffset,
+        hasSwappedOrder: givenHasSwappedOrder,
+      );
+
       // when
       final actual = givenEntity.hashCode;
 
-      // then
-      expect(actual, equals(givenOriginalOrderId + givenUpdatedOrderId));
+      // then - 同じフィールド値を持つ2つのエンティティは同じhashCodeを返す
+      expect(actual, equals(sameEntity.hashCode));
     });
   });
 

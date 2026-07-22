@@ -89,12 +89,18 @@ class _ReorderableAnimatedPositionedState
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      transform: Matrix4.translationValues(
-        _offsetAnimation.value.dx,
-        _offsetAnimation.value.dy,
-        0.0,
-      ),
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return Transform(
+          transform: Matrix4.translationValues(
+            _offsetAnimation.value.dx,
+            _offsetAnimation.value.dy,
+            0.0,
+          ),
+          child: child,
+        );
+      },
       child: widget.child,
     );
   }
@@ -152,10 +158,7 @@ class _ReorderableAnimatedPositionedState
     _animationController.duration =
         widget.animationConfig.draggingPositionChangeDuration;
     final tween = Tween<Offset>(begin: begin, end: end);
-    _offsetAnimation = tween.animate(_draggingCurveAnimation)
-      ..addListener(() {
-        setState(() {});
-      });
+    _offsetAnimation = tween.animate(_draggingCurveAnimation);
     await _animationController.forward();
   }
 
@@ -183,10 +186,7 @@ class _ReorderableAnimatedPositionedState
         widget.animationConfig.positionChangeDuration;
 
     final tween = Tween<Offset>(begin: begin, end: Offset.zero);
-    _offsetAnimation = tween.animate(_positionChangeCurveAnimation)
-      ..addListener(() {
-        setState(() {});
-      });
+    _offsetAnimation = tween.animate(_positionChangeCurveAnimation);
     await _animationController.forward();
 
     // there is no need to call the callback if the widget didn't change his position.

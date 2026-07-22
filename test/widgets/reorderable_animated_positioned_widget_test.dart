@@ -43,7 +43,7 @@ void main() {
   }) {
     expect(
         find.byWidgetPredicate((widget) =>
-            widget is Container &&
+            widget is Transform &&
             widget.transform == Matrix4.translationValues(x, y, 0.0)),
         findsOneWidget);
   }
@@ -70,9 +70,8 @@ void main() {
       // then
       expect(
           find.byWidgetPredicate((widget) =>
-              widget is Container &&
-              widget.transform == Matrix4.translationValues(0.0, 0.0, 0.0) &&
-              widget.child == givenChild),
+              widget is Transform &&
+              widget.transform == Matrix4.translationValues(0.0, 0.0, 0.0)),
           findsOneWidget);
       expect(callCounter, equals(0));
     });

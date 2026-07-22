@@ -120,7 +120,7 @@ class AutoScroller {
 
     _scrollTimer?.cancel();
     _scrollTimer = Timer.periodic(
-      const Duration(milliseconds: 10),
+      const Duration(milliseconds: 16),
       (_) => _tick(),
     );
   }

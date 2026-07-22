@@ -310,7 +310,8 @@ class ReorderableDraggableProvider extends InheritedWidget {
   }
 
   @override
-  bool updateShouldNotify(ReorderableDraggableProvider oldWidget) => true;
+  bool updateShouldNotify(ReorderableDraggableProvider oldWidget) =>
+      state != oldWidget.state;
 }
 
 class _CustomDraggable extends Draggable {

@@ -84,7 +84,16 @@ class ReorderableEntity {
   }
 
   @override
-  int get hashCode => originalOrderId + updatedOrderId;
+  int get hashCode => Object.hash(
+        key,
+        originalOrderId,
+        updatedOrderId,
+        originalOffset,
+        updatedOffset,
+        size,
+        isBuildingOffset,
+        hasSwappedOrder,
+      );
 
   @override
   String toString() =>

@@ -397,6 +397,10 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   /// ドラッグ終了処理の多重割り込みを防ぐガードフラグ。
   bool _isFinishingDragging = false;
 
+  /// builderモードで _getAllKeys() の結果をキャッシュするフィールド。
+  /// build() 実行のたびにクリアされる。
+  List<Key>? _cachedAllKeys;
+
   /// 共有の AutoScroller インスタンス。
   ///
   /// リオーダードラッグとラバーバンド選択の両方で使用する。
@@ -509,6 +513,9 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
 
   @override
   Widget build(BuildContext context) {
+    // builderモード用のキャッシュをクリア（毎ビルドで再計算）
+    _cachedAllKeys = null;
+
     late Widget child;
 
     final builder = widget.builder;
@@ -578,6 +585,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
       reorderableEntity: reorderableEntity,
       currentDraggedEntity: draggedEntity,
       index: index,
+      allKeys: _cachedAllKeys ??= _getAllKeys(),
     );
   }
 
@@ -590,6 +598,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     final reorderableController = _reorderableController;
     final childrenKeyMap = reorderableController.childrenKeyMap;
     final draggedEntity = reorderableController.draggedEntity;
+    final allKeys = _getAllKeys();
     var index = 0;
 
     for (final child in children) {
@@ -602,6 +611,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
           reorderableEntity: reorderableEntity,
           currentDraggedEntity: draggedEntity,
           index: index++,
+          allKeys: allKeys,
         ),
       );
     }
@@ -617,6 +627,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     required ReorderableEntity reorderableEntity,
     required ReorderableEntity? currentDraggedEntity,
     required int index,
+    required List<Key> allKeys,
   }) {
     bool isDraggable = !widget.nonDraggableIndices.contains(index) &&
         !widget.lockedIndices.contains(index);
@@ -632,9 +643,6 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     // 現在の選択状態を確認（Keyベース）
     final isSelected =
         isMultiSelectionEnabled && _selectionController.isSelected(child.key!);
-
-    // Shift+クリック用の全Keyリストを構範
-    final allKeys = _getAllKeys();
 
     return ReorderableBuilderItem(
       reorderableEntity: reorderableEntity,

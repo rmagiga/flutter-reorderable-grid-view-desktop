@@ -79,18 +79,22 @@ class _ReorderableAnimatedReleasedContainerState
 
   @override
   Widget build(BuildContext context) {
-    var child = widget.child;
+    return AnimatedBuilder(
+      animation: _offsetAnimationController,
+      builder: (context, child) {
+        final offset = _offsetAnimation?.value;
 
-    final offset = _offsetAnimation?.value;
-
-    if (offset == null) {
-      return child;
-    } else {
-      return Transform(
-        transform: Matrix4.translationValues(offset.dx, offset.dy, 0.0),
-        child: child,
-      );
-    }
+        if (offset == null) {
+          return child!;
+        } else {
+          return Transform(
+            transform: Matrix4.translationValues(offset.dx, offset.dy, 0.0),
+            child: child,
+          );
+        }
+      },
+      child: widget.child,
+    );
   }
 
   /// Checks if [oldEntity] and [newEntity] are different and the same for animation.
@@ -118,10 +122,7 @@ class _ReorderableAnimatedReleasedContainerState
       releasedReorderableEntity: releasedReorderableEntity,
     );
     final tween = Tween<Offset>(begin: begin, end: Offset.zero);
-    _offsetAnimation = tween.animate(_curveAnimation)
-      ..addListener(() {
-        setState(() {});
-      });
+    _offsetAnimation = tween.animate(_curveAnimation);
 
     await _offsetAnimationController.forward();
 
