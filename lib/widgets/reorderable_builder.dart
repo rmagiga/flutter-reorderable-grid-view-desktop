@@ -397,6 +397,14 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   /// ドラッグ終了処理の多重割り込みを防ぐガードフラグ。
   bool _isFinishingDragging = false;
 
+  /// 未選択アイテムからのドラッグ時に、選択クリアをドラッグ完了まで遅延させるフラグ。
+  ///
+  /// ドラッグ中に [_selectionController.clear] を呼ぶと、外部リスナーのリビルドで
+  /// ドラッグハンドル Widget が消滅し、Flutter のジェスチャーが Pointer Cancel を
+  /// 検知してドラッグが中断される。これを防ぐため、clear をドラッグ完了/キャンセル
+  /// まで遅延させる。
+  bool _pendingSelectionClearOnDragEnd = false;
+
   /// builderモードで _getAllKeys() の結果をキャッシュするフィールド。
   /// build() 実行のたびにクリアされる。
   List<Key>? _cachedAllKeys;
@@ -705,9 +713,11 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     final key = reorderableEntity.key;
     final isSelected = _selectionController.isSelected(key);
 
-    if (isMultiSelectionEnabled && !isSelected) {
-      _selectionController.clear();
-    }
+    // 未選択アイテムからのドラッグ時は、選択クリアをドラッグ完了まで遅延させる。
+    // ドラッグ中に clear() → notifyListeners() を呼ぶと、外部リスナーの
+    // リビルドでドラッグハンドル Widget が消滅し、ドラッグが中断されるため。
+    _pendingSelectionClearOnDragEnd =
+        isMultiSelectionEnabled && !isSelected;
 
     _reorderableController.handleDragStarted(
       reorderableEntity: reorderableEntity,
@@ -715,8 +725,10 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
       lockedIndices: widget.lockedIndices,
       isScrollableOutside: _isScrollOutside,
       itemCount: widget.itemCount,
-      selectedKeys:
-          isMultiSelectionEnabled ? _selectionController.selected : <Key>{},
+      // 未選択からのドラッグ時は空セットを渡す（単体移動の動作を維持）
+      selectedKeys: isMultiSelectionEnabled && !_pendingSelectionClearOnDragEnd
+          ? _selectionController.selected
+          : <Key>{},
     );
     widget.onDragStarted?.call(reorderableEntity.updatedOrderId);
 
@@ -780,6 +792,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   /// Finishes dragging without doing any animation for the dragged entity.
   void _handleDragCanceled(ReorderableEntity reorderableEntity) {
     _finishDragging();
+    _executePendingSelectionClear();
   }
 
   void _finishDragging() {
@@ -826,9 +839,21 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
         }
       }
     } finally {
+      _executePendingSelectionClear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _isFinishingDragging = false;
       });
+    }
+  }
+
+  /// 遅延させていた選択クリアを実行する。
+  ///
+  /// [_pendingSelectionClearOnDragEnd] が true の場合のみクリアを実行し、
+  /// フラグをリセットする。
+  void _executePendingSelectionClear() {
+    if (_pendingSelectionClearOnDragEnd) {
+      _pendingSelectionClearOnDragEnd = false;
+      _selectionController.clear();
     }
   }
 
