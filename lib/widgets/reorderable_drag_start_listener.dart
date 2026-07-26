@@ -62,8 +62,14 @@ class _ReorderableGridDragStartListenerState
       onTapDown: (details) {
         debugPrint('[DragStartListener] onTapDown 発生 (吸収)');
       },
+      onTapUp: (details) {
+        debugPrint('[DragStartListener] onTapUp 発生 (吸収)');
+      },
       onTap: () {
         debugPrint('[DragStartListener] onTap 発生 (吸収)');
+      },
+      onTapCancel: () {
+        debugPrint('[DragStartListener] onTapCancel 発生 (吸収)');
       },
       onLongPress: () {
         debugPrint('[DragStartListener] onLongPress 発生 (吸収)');
