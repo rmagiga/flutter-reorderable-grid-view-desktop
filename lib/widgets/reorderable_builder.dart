@@ -839,6 +839,16 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
         '[ReorderableBuilder] handleDragEnd 結果: reorderUpdateEntities count=${reorderUpdateEntities?.length}',
       );
 
+      if (reorderUpdateEntities != null && reorderUpdateEntities.isNotEmpty) {
+        final primaryIndex = reorderUpdateEntities.indexWhere(
+          (u) => u.oldIndex == oldIndex && u.newIndex == newIndex,
+        );
+        if (primaryIndex > 0) {
+          final primary = reorderUpdateEntities.removeAt(primaryIndex);
+          reorderUpdateEntities.insert(0, primary);
+        }
+      }
+
       if (reorderUpdateEntities != null) {
         assert((widget.onReorder != null) ^ (widget.onReorderPositions != null),
             'One of either onReorder or onReorderPositions must be provided');
