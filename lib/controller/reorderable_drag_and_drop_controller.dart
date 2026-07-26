@@ -233,8 +233,8 @@ class ReorderableDragAndDropController extends ReorderableController {
       childrenKeyMap[key.value] = updatedEntity;
       childrenOrderMap[i] = updatedEntity;
 
-      final oldIdx = currentKeys.indexOf(key);
-      if (oldIdx != i) {
+      final oldIdx = _keysAtDragStart.indexOf(key);
+      if (oldIdx != -1 && oldIdx != i) {
         orderUpdateEntities.add(ReorderUpdateEntity(
           oldIndex: oldIdx,
           newIndex: i,
