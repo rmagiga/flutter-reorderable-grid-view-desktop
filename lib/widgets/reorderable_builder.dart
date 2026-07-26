@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/auto_scroller.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_builder_controller.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_drag_and_drop_controller.dart';
@@ -713,6 +715,10 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     final key = reorderableEntity.key;
     final isSelected = _selectionController.isSelected(key);
 
+    debugPrint(
+      '[ReorderableBuilder] _handleDragStarted: key=$key, index=${reorderableEntity.updatedOrderId}, isSelected=$isSelected, selectedKeys=${_selectionController.selected}',
+    );
+
     // 未選択アイテムからのドラッグ時は、選択クリアをドラッグ完了まで遅延させる。
     // ドラッグ中に clear() → notifyListeners() を呼ぶと、外部リスナーの
     // リビルドでドラッグハンドル Widget が消滅し、ドラッグが中断されるため。
@@ -746,6 +752,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
 
       // notifying about the new position of the dragged child
       final orderId = _reorderableController.draggedEntity!.updatedOrderId;
+      debugPrint('[ReorderableBuilder] _handleDragUpdate: newOrderId=$orderId');
       widget.onUpdatedDraggedChild?.call(orderId);
 
       setState(() {});
@@ -762,6 +769,9 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     ReorderableEntity reorderableEntity,
     Offset? globalOffset,
   ) {
+    debugPrint(
+      '[ReorderableBuilder] _handleDragEnd: key=${reorderableEntity.key}, globalOffset=$globalOffset',
+    );
     if (globalOffset != null) {
       var globalRenderObject = context.findRenderObject() as RenderBox;
       var offset = globalRenderObject.globalToLocal(globalOffset);
@@ -791,18 +801,23 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   ///
   /// Finishes dragging without doing any animation for the dragged entity.
   void _handleDragCanceled(ReorderableEntity reorderableEntity) {
+    debugPrint(
+      '[ReorderableBuilder] _handleDragCanceled: key=${reorderableEntity.key}',
+    );
     _finishDragging();
     _executePendingSelectionClear();
   }
 
   void _finishDragging() {
     if (_isFinishingDragging) {
+      debugPrint('[ReorderableBuilder] _finishDragging スキップ (_isFinishingDragging == true)');
       return;
     }
     _isFinishingDragging = true;
 
     try {
       final draggedEntity = _reorderableController.draggedEntity;
+      debugPrint('[ReorderableBuilder] _finishDragging 実行: draggedEntity=${draggedEntity?.key}');
       if (draggedEntity == null) {
         return;
       }
@@ -813,14 +828,22 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
       final oldIndex = draggedEntity.originalOrderId;
       final newIndex = draggedEntity.updatedOrderId;
 
+      debugPrint(
+        '[ReorderableBuilder] _finishDragging 位置変換: key=$draggedKey, oldIndex=$oldIndex -> newIndex=$newIndex, isMultiSelection=$isMultiSelection',
+      );
+
       widget.onDragEnd?.call(newIndex);
 
       final reorderUpdateEntities = _reorderableController.handleDragEnd();
+      debugPrint(
+        '[ReorderableBuilder] handleDragEnd 結果: reorderUpdateEntities count=${reorderUpdateEntities?.length}',
+      );
 
       if (reorderUpdateEntities != null) {
         assert((widget.onReorder != null) ^ (widget.onReorderPositions != null),
             'One of either onReorder or onReorderPositions must be provided');
 
+        debugPrint('[ReorderableBuilder] onReorderPositions 呼び出し');
         widget.onReorderPositions?.call(reorderUpdateEntities);
 
         if (isMultiSelection) {
@@ -852,6 +875,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   /// フラグをリセットする。
   void _executePendingSelectionClear() {
     if (_pendingSelectionClearOnDragEnd) {
+      debugPrint('[ReorderableBuilder] _executePendingSelectionClear 実行 (selectionController.clear)');
       _pendingSelectionClearOnDragEnd = false;
       _selectionController.clear();
     }

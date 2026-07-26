@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_animation_config.dart';
@@ -106,9 +107,15 @@ class ReorderableDraggableState extends State<ReorderableDraggable>
       return true;
     }
     if (_dragHandleRenderBox == null) {
+      debugPrint(
+        '[ReorderableDraggable] _shouldStartDrag: false (renderBox is null, key=${widget.reorderableEntity.key})',
+      );
       return false;
     }
     if (!_dragHandleRenderBox!.attached) {
+      debugPrint(
+        '[ReorderableDraggable] _shouldStartDrag: false (renderBox not attached, key=${widget.reorderableEntity.key})',
+      );
       return false;
     }
 
@@ -119,8 +126,12 @@ class ReorderableDraggableState extends State<ReorderableDraggable>
           localPosition.dy >= 0 &&
           localPosition.dx <= size.width &&
           localPosition.dy <= size.height;
+      debugPrint(
+        '[ReorderableDraggable] _shouldStartDrag: allowed=$allowed (global=$globalPosition, local=$localPosition, size=$size, key=${widget.reorderableEntity.key})',
+      );
       return allowed;
     } catch (e) {
+      debugPrint('[ReorderableDraggable] _shouldStartDrag: exception=$e');
       return false;
     }
   }

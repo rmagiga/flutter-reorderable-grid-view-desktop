@@ -119,6 +119,10 @@ class _ReorderableSelectableState extends State<ReorderableSelectable> {
   void _handleTap() {
     if (!widget.enableMultiSelection || widget.isSelectionDisabled) return;
 
+    debugPrint(
+      '[ReorderableSelectable] _handleTap 実行: itemKey=${widget.itemKey}, shift=$_isShiftPressed, multi=$_isMultiModifierPressed',
+    );
+
     _focusNode.requestFocus();
     final controller = widget.selectionController;
 
@@ -227,6 +231,7 @@ class _ReorderableSelectableState extends State<ReorderableSelectable> {
 
     return Focus(
       focusNode: _focusNode,
+      skipTraversal: true,
       onKeyEvent: _handleKeyEvent,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

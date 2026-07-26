@@ -59,8 +59,15 @@ class _ReorderableGridDragStartListenerState
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () {}, // 背後の選択トグル (onTap) の誤発火を防ぐため、ジェスチャーを吸収する
-      onLongPress: () {}, // 長押しも同様に吸収
+      onTapDown: (details) {
+        debugPrint('[DragStartListener] onTapDown 発生 (吸収)');
+      },
+      onTap: () {
+        debugPrint('[DragStartListener] onTap 発生 (吸収)');
+      },
+      onLongPress: () {
+        debugPrint('[DragStartListener] onLongPress 発生 (吸収)');
+      },
       child: widget.child,
     );
   }
