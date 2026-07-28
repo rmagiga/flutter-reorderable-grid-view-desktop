@@ -10,7 +10,7 @@ void main() {
     final controller = ReorderableSelectionController();
     final gridKey = GlobalKey();
 
-    final itemKey1 = const ValueKey(1);
+    const itemKey1 = ValueKey(1);
 
     final childrenKeyMap = <dynamic, ReorderableEntity>{
       1: ReorderableEntity.create(
@@ -60,7 +60,7 @@ void main() {
     final controller = ReorderableSelectionController();
     final gridKey = GlobalKey();
 
-    final itemKey1 = const ValueKey(1);
+    const itemKey1 = ValueKey(1);
 
     final childrenKeyMap = <dynamic, ReorderableEntity>{
       1: ReorderableEntity.create(
@@ -110,7 +110,7 @@ void main() {
     final controller = ReorderableSelectionController();
     final gridKey = GlobalKey();
 
-    final itemKey1 = const ValueKey(1);
+    const itemKey1 = ValueKey(1);
     bool childTapped = false;
 
     final childrenKeyMap = <dynamic, ReorderableEntity>{
@@ -163,4 +163,3 @@ void main() {
     expect(childTapped, isTrue);
   });
 }
-

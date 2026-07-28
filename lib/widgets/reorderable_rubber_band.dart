@@ -820,7 +820,6 @@ class _RubberBandTapGestureRecognizer extends TapGestureRecognizer {
 
   _RubberBandTapGestureRecognizer({
     required this.canStartTap,
-    super.debugOwner,
   });
 
   @override
