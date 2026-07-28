@@ -269,6 +269,29 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
     return false;
   }
 
+  /// タップ位置が何らかのアイテム（選択中/未選択問わず）上にあるかを判定する。
+  bool _isOnAnyItem(Offset localPosition) {
+    final childrenKeyMap = widget.getChildrenKeyMap();
+    final contentPosition = _localToGridContent(localPosition);
+
+    for (final entity in childrenKeyMap.values) {
+      if (entity.size.width <= 0 || entity.size.height <= 0) continue;
+
+      final itemRect = Rect.fromLTWH(
+        entity.updatedOffset.dx,
+        entity.updatedOffset.dy,
+        entity.size.width,
+        entity.size.height,
+      );
+
+      if (itemRect.contains(contentPosition)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -343,6 +366,16 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
                       ..onCancel = _handlePanCancel;
                   },
                 ),
+                TapGestureRecognizer:
+                    GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+                  () => TapGestureRecognizer(),
+                  (TapGestureRecognizer instance) {
+                    instance
+                      ..onTapDown = _handleTapDown
+                      ..onTapUp = _handleTapUp
+                      ..onTapCancel = _handleTapCancel;
+                  },
+                ),
               },
             ),
           ),
@@ -352,6 +385,25 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
         ],
       ),
     );
+  }
+
+  void _handleTapDown(TapDownDetails details) {}
+
+  void _handleTapCancel() {}
+
+  /// 余白（どのアイテムの上でもない背景領域）がタップされた場合に選択をクリアする。
+  void _handleTapUp(TapUpDetails details) {
+    final myRenderBox = context.findRenderObject() as RenderBox?;
+    if (myRenderBox == null) return;
+
+    final localPosition = myRenderBox.globalToLocal(details.globalPosition);
+
+    if (!_isOnAnyItem(localPosition)) {
+      if (widget.selectionController.selected.isNotEmpty) {
+        widget.selectionController.clear();
+        widget.onSelectionChanged?.call(widget.selectionController.selected);
+      }
+    }
   }
 
   /// PointerDown 位置でラバーバンドを開始可能かを判定する。

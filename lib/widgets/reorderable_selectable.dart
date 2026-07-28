@@ -84,7 +84,7 @@ class _ReorderableSelectableState extends State<ReorderableSelectable> {
   @override
   void initState() {
     super.initState();
-    _focusNode = FocusNode();
+    _focusNode = FocusNode(skipTraversal: true);
   }
 
   @override
@@ -194,7 +194,7 @@ class _ReorderableSelectableState extends State<ReorderableSelectable> {
 
   Widget _buildChild(BuildContext context) {
     final child = widget.child;
-    final isSelected = widget.isSelected;
+    final isSelected = widget.isSelected && !widget.isSelectionDisabled;
 
     // selectedBuilder が優先
     final customBuilder = widget.selectedBuilder;

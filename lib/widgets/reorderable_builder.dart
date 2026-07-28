@@ -602,7 +602,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
       reorderableEntity: reorderableEntity,
       currentDraggedEntity: draggedEntity,
       index: index,
-      allKeys: _cachedAllKeys ??= _getAllKeys(),
+      allKeys: _cachedAllKeys ??= _getSelectableKeys(),
     );
   }
 
@@ -615,7 +615,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     final reorderableController = _reorderableController;
     final childrenKeyMap = reorderableController.childrenKeyMap;
     final draggedEntity = reorderableController.draggedEntity;
-    final allKeys = _getAllKeys();
+    final selectableKeys = _getSelectableKeys();
     var index = 0;
 
     for (final child in children) {
@@ -628,7 +628,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
           reorderableEntity: reorderableEntity,
           currentDraggedEntity: draggedEntity,
           index: index++,
-          allKeys: allKeys,
+          allKeys: selectableKeys,
         ),
       );
     }
@@ -711,6 +711,20 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     final sortedKeys = keyMap.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
     return sortedKeys.map((e) => e.value.key).toList();
+  }
+
+  /// 現在のGridViewに表示されている選択可能なアイテムのKeyリストを返す。
+  List<Key> _getSelectableKeys() {
+    final allKeys = _getAllKeys();
+    final selectableKeys = <Key>[];
+    for (var i = 0; i < allKeys.length; i++) {
+      final isSelectionDisabled = widget.lockedIndices.contains(i) ||
+          (widget.disabledSelectionPredicate?.call(i) ?? false);
+      if (!isSelectionDisabled) {
+        selectableKeys.add(allKeys[i]);
+      }
+    }
+    return selectableKeys;
   }
 
   ///
