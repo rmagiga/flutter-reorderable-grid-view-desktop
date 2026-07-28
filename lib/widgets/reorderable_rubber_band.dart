@@ -366,11 +366,15 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
                       ..onCancel = _handlePanCancel;
                   },
                 ),
-                TapGestureRecognizer:
-                    GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-                  () => TapGestureRecognizer(),
-                  (TapGestureRecognizer instance) {
+                _RubberBandTapGestureRecognizer:
+                    GestureRecognizerFactoryWithHandlers<
+                        _RubberBandTapGestureRecognizer>(
+                  () => _RubberBandTapGestureRecognizer(
+                    canStartTap: _canStartTap,
+                  ),
+                  (_RubberBandTapGestureRecognizer instance) {
                     instance
+                      ..canStartTap = _canStartTap
                       ..onTapDown = _handleTapDown
                       ..onTapUp = _handleTapUp
                       ..onTapCancel = _handleTapCancel;
@@ -404,6 +408,18 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
         widget.onSelectionChanged?.call(widget.selectionController.selected);
       }
     }
+  }
+
+  /// PointerDown 位置で余白タップ処理を開始可能かを判定する。
+  ///
+  /// アイテム上のタップの場合は false を返し、Gesture Arena に参加しないことで
+  /// 子アイテム自身の GestureDetector（onTap / onDoubleTap）にイベントを譲る。
+  bool _canStartTap(Offset globalPosition) {
+    final myRenderBox = context.findRenderObject() as RenderBox?;
+    if (myRenderBox == null) return true;
+
+    final localPosition = myRenderBox.globalToLocal(globalPosition);
+    return !_isOnAnyItem(localPosition);
   }
 
   /// PointerDown 位置でラバーバンドを開始可能かを判定する。
@@ -784,6 +800,32 @@ class _RubberBandPanGestureRecognizer extends PanGestureRecognizer {
   @override
   void addPointer(PointerDownEvent event) {
     if (!canStartBand(event.position)) {
+      return;
+    }
+    super.addPointer(event);
+  }
+}
+
+/// 余白タップ専用の [TapGestureRecognizer]。
+///
+/// [addPointer] の段階で [canStartTap] を評価し、アイテム上（_isOnAnyItem == true）のタップでは
+/// Gesture Arena に参加しない。
+/// これにより、グリッドアイテム自身の [GestureDetector] のタップ／ダブルタップイベントと
+/// 競合することを根本的に防ぐ。
+class _RubberBandTapGestureRecognizer extends TapGestureRecognizer {
+  /// PointerDown のグローバル位置でタップ処理を開始可能かを判定するコールバック。
+  ///
+  /// false を返した場合（アイテム上のタップ等）、この Recognizer は Gesture Arena に参加しない。
+  bool Function(Offset globalPosition) canStartTap;
+
+  _RubberBandTapGestureRecognizer({
+    required this.canStartTap,
+    super.debugOwner,
+  });
+
+  @override
+  void addPointer(PointerDownEvent event) {
+    if (!canStartTap(event.position)) {
       return;
     }
     super.addPointer(event);
