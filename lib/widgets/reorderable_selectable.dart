@@ -54,6 +54,9 @@ class ReorderableSelectable extends StatefulWidget {
   /// 表示する子ウィジェット
   final Widget child;
 
+  /// GestureDetector によるタップジェスチャーの検知を有効にするか（子が独自にタップ/ダブルタップを処理する場合は false に設定する）
+  final bool enableTapGesture;
+
   const ReorderableSelectable({
     required this.itemKey,
     required this.index,
@@ -64,6 +67,7 @@ class ReorderableSelectable extends StatefulWidget {
     required this.enableSelectAll,
     required this.allKeys,
     required this.child,
+    this.enableTapGesture = true,
     this.onSelectionChanged,
     this.selectedDecoration,
     this.selectedBuilder,
@@ -229,15 +233,19 @@ class _ReorderableSelectableState extends State<ReorderableSelectable> {
       return widget.child;
     }
 
+    final childContent = _buildChild(context);
+
     return Focus(
       focusNode: _focusNode,
       skipTraversal: true,
       onKeyEvent: _handleKeyEvent,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _handleTap,
-        child: _buildChild(context),
-      ),
+      child: widget.enableTapGesture
+          ? GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _handleTap,
+              child: childContent,
+            )
+          : childContent,
     );
   }
 }

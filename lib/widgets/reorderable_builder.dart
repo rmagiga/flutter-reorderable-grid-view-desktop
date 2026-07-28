@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/auto_scroller.dart';
@@ -211,6 +210,12 @@ class ReorderableBuilder<T> extends StatefulWidget {
   /// ハンドル部分をドラッグしたときのみドラッグを開始できます。
   final bool buildDefaultDragHandles;
 
+  /// ReorderableSelectable 内の GestureDetector によるタップ処理を有効にするか。
+  ///
+  /// 子要素が独自にタップ/ダブルタップのジェスチャーを処理する場合（例: GridCardDecorator を使用）は
+  /// false に設定して GestureDetector によるジェスチャー競合を防ぎます。
+  final bool enableSelectableTap;
+
   /// ラバーバンド（矩形ドラッグ）選択を有効にするか。
   ///
   /// [enableMultiSelection] が true の場合にのみ機能する。
@@ -323,6 +328,7 @@ class ReorderableBuilder<T> extends StatefulWidget {
     this.enableSelectAll = _defaultEnableSelectAll,
     this.disabledSelectionPredicate,
     this.buildDefaultDragHandles = _defaultBuildDefaultDragHandles,
+    this.enableSelectableTap = true,
     this.enableRubberBandSelection = _defaultEnableRubberBandSelection,
     this.rubberBandConfiguration,
     this.rubberBandController,
@@ -366,6 +372,7 @@ class ReorderableBuilder<T> extends StatefulWidget {
     this.enableSelectAll = _defaultEnableSelectAll,
     this.disabledSelectionPredicate,
     this.buildDefaultDragHandles = _defaultBuildDefaultDragHandles,
+    this.enableSelectableTap = true,
     this.enableRubberBandSelection = _defaultEnableRubberBandSelection,
     this.rubberBandConfiguration,
     this.rubberBandController,
@@ -686,6 +693,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
       selectedDecoration: widget.selectedDecoration,
       selectedBuilder: widget.selectedBuilder,
       buildDefaultDragHandles: widget.buildDefaultDragHandles,
+      enableSelectableTap: widget.enableSelectableTap,
       child: child,
     );
   }
@@ -722,8 +730,7 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
     // 未選択アイテムからのドラッグ時は、選択クリアをドラッグ完了まで遅延させる。
     // ドラッグ中に clear() → notifyListeners() を呼ぶと、外部リスナーの
     // リビルドでドラッグハンドル Widget が消滅し、ドラッグが中断されるため。
-    _pendingSelectionClearOnDragEnd =
-        isMultiSelectionEnabled && !isSelected;
+    _pendingSelectionClearOnDragEnd = isMultiSelectionEnabled && !isSelected;
 
     _reorderableController.handleDragStarted(
       reorderableEntity: reorderableEntity,
@@ -810,14 +817,16 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
 
   void _finishDragging() {
     if (_isFinishingDragging) {
-      debugPrint('[ReorderableBuilder] _finishDragging スキップ (_isFinishingDragging == true)');
+      debugPrint(
+          '[ReorderableBuilder] _finishDragging スキップ (_isFinishingDragging == true)');
       return;
     }
     _isFinishingDragging = true;
 
     try {
       final draggedEntity = _reorderableController.draggedEntity;
-      debugPrint('[ReorderableBuilder] _finishDragging 実行: draggedEntity=${draggedEntity?.key}');
+      debugPrint(
+          '[ReorderableBuilder] _finishDragging 実行: draggedEntity=${draggedEntity?.key}');
       if (draggedEntity == null) {
         return;
       }
@@ -885,7 +894,8 @@ class _ReorderableBuilderState<T> extends State<ReorderableBuilder<T>>
   /// フラグをリセットする。
   void _executePendingSelectionClear() {
     if (_pendingSelectionClearOnDragEnd) {
-      debugPrint('[ReorderableBuilder] _executePendingSelectionClear 実行 (selectionController.clear)');
+      debugPrint(
+          '[ReorderableBuilder] _executePendingSelectionClear 実行 (selectionController.clear)');
       _pendingSelectionClearOnDragEnd = false;
       _selectionController.clear();
     }

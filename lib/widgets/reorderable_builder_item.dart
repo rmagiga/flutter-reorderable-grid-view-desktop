@@ -118,6 +118,9 @@ class ReorderableBuilderItem extends StatefulWidget {
 
   final bool buildDefaultDragHandles;
 
+  /// ReorderableSelectable 内の GestureDetector によるタップ処理を有効にするか
+  final bool enableSelectableTap;
+
   const ReorderableBuilderItem({
     required this.reorderableEntity,
     required this.animationConfig,
@@ -147,6 +150,7 @@ class ReorderableBuilderItem extends StatefulWidget {
     this.selectedDecoration,
     this.selectedBuilder,
     this.buildDefaultDragHandles = true,
+    this.enableSelectableTap = true,
     super.key,
   });
 
@@ -270,6 +274,7 @@ class _ReorderableBuilderItemState extends State<ReorderableBuilderItem> {
       enableMultiSelection: widget.enableMultiSelection,
       enableSelectAll: widget.enableSelectAll,
       allKeys: widget.allKeys,
+      enableTapGesture: widget.enableSelectableTap,
       onSelectionChanged: widget.onSelectionChanged,
       selectedDecoration: widget.selectedDecoration,
       selectedBuilder: widget.selectedBuilder,
