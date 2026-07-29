@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -208,21 +209,17 @@ class _ReorderableRubberBandState extends State<ReorderableRubberBand> {
     }
   }
 
-  bool get _isMacOS {
-    try {
-      return Platform.isMacOS;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _isMacOS => defaultTargetPlatform == TargetPlatform.macOS;
 
   /// デスクトップ環境かどうか。
   bool get _isDesktop {
-    try {
-      return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-    } catch (_) {
-      return false;
-    }
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        Platform.isWindows ||
+        Platform.isLinux ||
+        Platform.isMacOS;
   }
 
   /// ラバーバンドが有効かどうか。

@@ -5,7 +5,6 @@ import 'package:flutter_reorderable_grid_view_desktop/entities/reorder_update_en
 import 'package:flutter_reorderable_grid_view_desktop/entities/reorderable_entity.dart';
 import 'package:flutter_reorderable_grid_view_desktop/widgets/reorderable_builder.dart';
 
-// TODO(karvulf): add comment
 class ReorderableDragAndDropController extends ReorderableController {
   /// Indices of children that cannot move while drag and drop.
   @visibleForTesting
@@ -98,10 +97,6 @@ class ReorderableDragAndDropController extends ReorderableController {
     if (collisionOrderId != null && !lockedIndices.contains(collisionOrderId)) {
       final draggedOrderId = super.draggedEntity!.updatedOrderId;
       final difference = draggedOrderId - collisionOrderId;
-
-      if (difference > 1 || difference < -1) {
-        // print('_draggedEntity $_draggedEntity');
-      }
 
       if (difference > 1) {
         _updateMultipleCollisions(
@@ -584,35 +579,3 @@ class ReorderableDragAndDropController extends ReorderableController {
     return updatedItems;
   }
 }
-
-/**
- *
-    ///
-    /// some prints for me
-    ///
-    final draggedOrderIdBefore = updatedDraggedEntity.originalOrderId;
-    final draggedOrderIdAfter = updatedDraggedEntity.updatedOrderId;
-
-    final draggedOffsetBefore = updatedDraggedEntity.originalOffset;
-    final draggedOffsetAfter = updatedDraggedEntity.updatedOffset;
-
-    final collisionOrderIdBefore = updatedCollisionEntity.originalOrderId;
-    final collisionOrderIdAfter = updatedCollisionEntity.updatedOrderId;
-
-    final collisionOffsetBefore = updatedCollisionEntity.originalOffset;
-    final collisionOffsetAfter = updatedCollisionEntity.updatedOffset;
-    /*
-    print(
-    'Dragged $draggedOrderIdBefore(${draggedEntity.key}) -> $draggedOrderIdAfter(${updatedDraggedEntity.key})');
-    print(
-    'Collisioned $collisionOrderIdBefore(${collisionReorderableEntity.key}) -> $collisionOrderIdAfter(${updatedCollisionEntity.key})');
-
-    print('');
-    print('Dragged Entity: $updatedDraggedEntity');
-    print('----');
-    print('Collisioned Entity: $updatedCollisionEntity');
-    print('---- END ----');
-    print('');
-    */
-
- */

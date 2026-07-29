@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_reorderable_grid_view_desktop/controller/reorderable_selection_controller.dart';
@@ -112,20 +113,12 @@ class _ReorderableSelectableState extends State<ReorderableSelectable> {
   }
 
   bool get _isMacOS {
-    try {
-      return Platform.isMacOS;
-    } catch (_) {
-      // Web環境など Platform が使用できない場合は false
-      return false;
-    }
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.macOS || Platform.isMacOS;
   }
 
   void _handleTap() {
     if (!widget.enableMultiSelection || widget.isSelectionDisabled) return;
-
-    debugPrint(
-      '[ReorderableSelectable] _handleTap 実行: itemKey=${widget.itemKey}, shift=$_isShiftPressed, multi=$_isMultiModifierPressed',
-    );
 
     _focusNode.requestFocus();
     final controller = widget.selectionController;

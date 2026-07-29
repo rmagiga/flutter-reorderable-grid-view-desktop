@@ -105,32 +105,18 @@ class ReorderableDraggableState extends State<ReorderableDraggable>
     if (widget.buildDefaultDragHandles) {
       return true;
     }
-    if (_dragHandleRenderBox == null) {
-      debugPrint(
-        '[ReorderableDraggable] _shouldStartDrag: false (renderBox is null, key=${widget.reorderableEntity.key})',
-      );
-      return false;
-    }
-    if (!_dragHandleRenderBox!.attached) {
-      debugPrint(
-        '[ReorderableDraggable] _shouldStartDrag: false (renderBox not attached, key=${widget.reorderableEntity.key})',
-      );
+    if (_dragHandleRenderBox == null || !_dragHandleRenderBox!.attached) {
       return false;
     }
 
     try {
       final localPosition = _dragHandleRenderBox!.globalToLocal(globalPosition);
       final size = _dragHandleRenderBox!.size;
-      final allowed = localPosition.dx >= 0 &&
+      return localPosition.dx >= 0 &&
           localPosition.dy >= 0 &&
           localPosition.dx <= size.width &&
           localPosition.dy <= size.height;
-      debugPrint(
-        '[ReorderableDraggable] _shouldStartDrag: allowed=$allowed (global=$globalPosition, local=$localPosition, size=$size, key=${widget.reorderableEntity.key})',
-      );
-      return allowed;
     } catch (e) {
-      debugPrint('[ReorderableDraggable] _shouldStartDrag: exception=$e');
       return false;
     }
   }
